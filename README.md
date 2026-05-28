@@ -179,4 +179,4 @@ Apache License 2.0 — see [LICENSE](LICENSE).
 
 ## Credits
 
-Created by **synthalorian** (Carter) with assistance from **synthclaw**.
+Built by **synth** (synthalorian) with **synthclaw**.
