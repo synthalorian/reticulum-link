@@ -1,0 +1,31 @@
+# Elixir
+/_build/
+/deps/
+/cover/
+/doc/
+/.fetch
+*.ez
+reticulum_link-*.tar.gz
+
+# Erlang
+erl_crash.dump
+*.beam
+
+# Nerves
+/_nerves/
+/images/
+/nerves/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
