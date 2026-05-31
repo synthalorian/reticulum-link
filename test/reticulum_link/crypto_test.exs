@@ -1,8 +1,6 @@
 defmodule ReticulumLink.CryptoTest do
   use ExUnit.Case, async: true
 
-  import ExUnit.CaptureLog
-
   alias ReticulumLink.Crypto.{Identity, KeyExchange, Cipher, Hash, IdentityManager}
 
   describe "Hash" do
@@ -67,7 +65,8 @@ defmodule ReticulumLink.CryptoTest do
       message = "hello world"
 
       sig = Identity.sign(message, sk)
-      assert byte_size(sig) == 64  # 32 for r + 32 for s
+      # 32 for r + 32 for s
+      assert byte_size(sig) == 64
 
       assert Identity.verify(message, sig, pk)
     end
@@ -92,7 +91,7 @@ defmodule ReticulumLink.CryptoTest do
     test "curve25519 keys are derived correctly" do
       {:ok, {sk, pk}} = Identity.generate_keypair()
 
-      {:ok, xsk} = Identity.to_curve25519(sk, :secret)
+      {:ok, _xsk} = Identity.to_curve25519(sk, :secret)
       {:ok, xpk} = Identity.to_curve25519(pk, :public)
 
       # The public x25519 key should be deterministic
@@ -137,8 +136,8 @@ defmodule ReticulumLink.CryptoTest do
       {:ok, {sk_a, pk_a}} = Identity.generate_keypair()
       {:ok, {sk_b, pk_b}} = Identity.generate_keypair()
 
-      {:ok, {xsk_a, xpk_a}} = KeyExchange.derive_keypair(sk_a, pk_a)
-      {:ok, {xsk_b, _}} = KeyExchange.derive_keypair(sk_b, pk_b)
+      {:ok, {xsk_a, _xpk_a}} = KeyExchange.derive_keypair(sk_a, pk_a)
+      {:ok, {xsk_b, _xpk_b}} = KeyExchange.derive_keypair(sk_b, pk_b)
 
       {:ok, secret} = KeyExchange.derive_shared_secret(xsk_a, xsk_b)
       assert byte_size(secret) == 32
@@ -242,28 +241,32 @@ defmodule ReticulumLink.CryptoTest do
   end
 
   describe "IdentityManager" do
-    @tag :tmp_dir
-    test "starts and loads identity", %{tmp_dir: dir} do
-      # Ensure directory exists
-      File.mkdir_p(dir)
+    test "starts and loads identity" do
+      tmp_dir =
+        Path.join(System.tmp_dir!(), "reticulum_link_test_#{System.unique_integer([:positive])}")
+
+      File.mkdir_p!(tmp_dir)
+
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
       # Create a key file
-      key_file = Path.join(dir, "identity.key")
+      key_file = Path.join(tmp_dir, "identity.key")
       {:ok, {sk, pk}} = Identity.generate_keypair()
       {:ok, {xsk, xpk}} = KeyExchange.derive_keypair(sk, pk)
 
       # Write JSON manually
-      json = Jason.encode!(%{
-        "ed25519_secret" => Base.encode16(sk, case: :lower),
-        "ed25519_public" => Base.encode16(pk, case: :lower),
-        "x25519_secret" => Base.encode16(xsk, case: :lower),
-        "x25519_public" => Base.encode16(xpk, case: :lower)
-      })
+      json =
+        Jason.encode!(%{
+          "ed25519_secret" => Base.encode16(sk, case: :lower),
+          "ed25519_public" => Base.encode16(pk, case: :lower),
+          "x25519_secret" => Base.encode16(xsk, case: :lower),
+          "x25519_public" => Base.encode16(xpk, case: :lower)
+        })
 
       File.write!(key_file, json)
 
       # Start the manager
-      opts = [data_dir: dir, key_file: "identity.key"]
+      opts = [data_dir: tmp_dir, key_file: "identity.key", name: :test_identity_manager_1]
       {:ok, pid} = IdentityManager.start_link(opts)
 
       # Should be able to get identity
@@ -285,15 +288,28 @@ defmodule ReticulumLink.CryptoTest do
       :ok = GenServer.stop(pid)
     end
 
-    test "auto-generates identity if no key file exists", %{tmp_dir: dir} do
-      opts = [data_dir: dir, key_file: "identity.key", auto_generate: true]
+    test "auto-generates identity if no key file exists" do
+      tmp_dir =
+        Path.join(System.tmp_dir!(), "reticulum_link_test_#{System.unique_integer([:positive])}")
+
+      File.mkdir_p!(tmp_dir)
+
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      opts = [
+        data_dir: tmp_dir,
+        key_file: "identity.key",
+        auto_generate: true,
+        name: :test_identity_manager_2
+      ]
+
       {:ok, pid} = IdentityManager.start_link(opts)
 
       assert {:ok, identity} = IdentityManager.identity()
       assert byte_size(identity.ed25519_secret) == 32
 
       # Key file should have been created
-      key_file = Path.join(dir, "identity.key")
+      key_file = Path.join(tmp_dir, "identity.key")
       assert File.exists?(key_file)
 
       :ok = GenServer.stop(pid)

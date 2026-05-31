@@ -59,10 +59,13 @@ defmodule ReticulumLink.Crypto.Hash do
   """
   @spec hkdf_extract(binary(), binary()) :: binary()
   def hkdf_extract(salt, ikm) when is_binary(salt) and is_binary(ikm) do
-    hash_len = 32  # SHA-256 output size in bytes
+    # SHA-256 output size in bytes
+    hash_len = 32
+
     effective_salt =
       if byte_size(salt) == 0, do: :binary.copy(<<0>>, hash_len), else: salt
-    :crypto.mac(:hmac, :sha256, ikm, effective_salt)
+
+    :crypto.mac(:hmac, :sha256, effective_salt, ikm)
   end
 
   @doc """
@@ -86,7 +89,8 @@ defmodule ReticulumLink.Crypto.Hash do
   @spec hkdf_expand(binary(), binary(), non_neg_integer()) :: binary()
   def hkdf_expand(prk, info, length)
       when is_binary(prk) and is_binary(info) and is_integer(length) and length >= 0 do
-    hash_len = 32  # SHA-256 output size in bytes
+    # SHA-256 output size in bytes
+    hash_len = 32
     max_length = hash_len * 255
 
     if length > max_length do
@@ -97,7 +101,7 @@ defmodule ReticulumLink.Crypto.Hash do
     do_hkdf_expand(prk, info, length, <<>>, 0)
   end
 
-  defp do_hkdf_expand(_prk, _info, length, t, n) when byte_size(t) >= length do
+  defp do_hkdf_expand(_prk, _info, length, t, _n) when byte_size(t) >= length do
     :binary.part(t, 0, length)
   end
 
