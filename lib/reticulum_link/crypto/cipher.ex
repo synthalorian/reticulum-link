@@ -59,9 +59,9 @@ defmodule ReticulumLink.Crypto.Cipher do
       when is_binary(plaintext) and is_binary(key) and is_binary(nonce) and is_binary(aad) do
     with {:ok, _} <- validate_key(key),
          {:ok, _} <- validate_nonce(nonce) do
-      {tag, ciphertext} =
+      {ciphertext, tag} =
         :crypto.crypto_one_time_aead(
-          :aes_gcm,
+          :aes_256_gcm,
           key,
           nonce,
           plaintext,
@@ -105,7 +105,7 @@ defmodule ReticulumLink.Crypto.Cipher do
          {:ok, _} <- validate_nonce(nonce),
          {:ok, ciphertext, tag} <- split_tag(ciphertext_with_tag) do
       case :crypto.crypto_one_time_aead(
-             :aes_gcm,
+             :aes_256_gcm,
              key,
              nonce,
              ciphertext,
@@ -114,8 +114,8 @@ defmodule ReticulumLink.Crypto.Cipher do
              false
            ) do
         plaintext when is_binary(plaintext) -> {:ok, plaintext}
-        {:error, _} -> {:error, :decrypt_failed}
-        e -> e
+        :error -> {:error, :decrypt_failed}
+        _ -> {:error, :decrypt_failed}
       end
     end
   end
@@ -250,12 +250,12 @@ defmodule ReticulumLink.Crypto.Cipher do
 
   defp split_tag(data) do
     tag_size = 16
-    case :erlang.split_binary(data, byte_size(data) - tag_size) do
-      {ciphertext, tag} when byte_size(tag) == tag_size ->
-        {:ok, ciphertext, {:ok, tag}}
 
-      _ ->
-        {:error, :invalid_tag_size}
+    if byte_size(data) < tag_size do
+      {:error, :invalid_tag_size}
+    else
+      {ciphertext, tag} = :erlang.split_binary(data, byte_size(data) - tag_size)
+      {:ok, ciphertext, tag}
     end
   end
 end
