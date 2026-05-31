@@ -8,7 +8,15 @@ defmodule ReticulumLink.Lxmf.Supervisor do
 
   @impl true
   def init(_opts) do
-    children = []
+    children = [
+      {ReticulumLink.Lxmf.MessageStore, name: ReticulumLink.Lxmf.MessageStore},
+      {ReticulumLink.Lxmf.DeliveryTracker, name: ReticulumLink.Lxmf.DeliveryTracker},
+      {ReticulumLink.Lxmf.PropagationEngine,
+       name: ReticulumLink.Lxmf.PropagationEngine,
+       message_store: ReticulumLink.Lxmf.MessageStore,
+       delivery_tracker: ReticulumLink.Lxmf.DeliveryTracker}
+    ]
+
     Supervisor.init(children, strategy: :one_for_one)
   end
 end
