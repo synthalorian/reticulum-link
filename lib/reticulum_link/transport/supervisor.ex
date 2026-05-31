@@ -22,7 +22,19 @@ defmodule ReticulumLink.Transport.Supervisor do
     children = [
       # Interface supervisor — dynamically spawns interface processes
       {DynamicSupervisor,
-       strategy: :one_for_one, name: ReticulumLink.Transport.InterfaceSupervisor}
+       strategy: :one_for_one, name: ReticulumLink.Transport.InterfaceSupervisor},
+
+      # Path routing table
+      ReticulumLink.Transport.PathManager,
+
+      # Link manager — one GenServer per encrypted link
+      ReticulumLink.Transport.LinkManager,
+
+      # Announce handler — dedup, cache, forward
+      ReticulumLink.Transport.AnnounceHandler,
+
+      # Transport mode coordinator
+      ReticulumLink.Transport.Transport
     ]
 
     Logger.info("Transport supervisor started")
