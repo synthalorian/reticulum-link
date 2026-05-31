@@ -2,7 +2,49 @@
 
 All notable changes to Reticulum Link will be documented in this file.
 
-## [0.1.0] - 2026-05-31
+## [0.3.0] - 2026-05-31
+
+### Added
+
+- **Links & Announces** — Full Reticulum link state machine and announce propagation
+  - `ReticulumLink.Transport.Link` — GenServer state machine (PENDING → HANDSHAKE → ACTIVE → STALE → CLOSED) with ECDH key exchange, HKDF key derivation, AES-256-GCM encrypt/decrypt, keepalive watchdog, and stale/timeout detection
+  - `ReticulumLink.Transport.LinkManager` — DynamicSupervisor for per-link processes with configurable restart strategy
+  - `ReticulumLink.Transport.PathManager` — ETS routing table with TTL expiration, periodic cleanup, and PubSub path request broadcast
+  - `ReticulumLink.Transport.AnnounceHandler` — Announce deduplication (rolling hash set), FIFO caching, path registration on receive, conditional forwarding when transport mode enabled
+  - `ReticulumLink.Transport.Transport` — Transport mode coordinator with enable/disable, max hops enforcement, local destination detection, and packet forwarding
+- **Integration** — All transport modules wired into `ReticulumLink.Transport.Supervisor`
+- **Test Suite** — 10 additional ExUnit tests covering link lifecycle, path manager operations, and transport coordination (61 total)
+
+### Changed
+
+- PathManager uses unnamed ETS tables (table ref in GenServer state) to avoid async test collisions
+- LinkManager uses `:temporary` restart strategy — crashed links don't auto-restart
+
+### Fixed
+
+- ETS match spec syntax errors in PathManager and AnnounceHandler (invalid `%{expires_at: :"$1", :_ => :_}` pattern)
+- Named process collisions in PathManager tests (removed `:named_table`)
+
+---
+
+## [0.2.0] - 2026-05-30
+
+### Added
+
+- **Packet & Protocol Layer** — Reticulum packet framing, header parsing, destination addressing
+  - `ReticulumLink.Transport.Packet` — Packet struct with pack/unpack, type validation, and payload handling
+  - `ReticulumLink.Transport.Header` — Header parsing with context flags, destination hash, and hop count
+  - `ReticulumLink.Transport.Destination` — Destination struct with hash derivation and address validation
+  - `ReticulumLink.Transport.Interface` — Behaviour for transport interfaces (TCP, Serial, LoRa, AutoInterface)
+  - `ReticulumLink.Transport.Interface.Tcp` — TCP interface implementation
+  - `ReticulumLink.Transport.Interface.Serial` — Serial interface implementation
+  - `ReticulumLink.Transport.Interface.AutoInterface` — Auto-discovery interface implementation
+- **Transport Supervisor** — OTP supervision tree for transport layer components
+- **Test Suite** — 24 ExUnit tests covering packet, header, destination, and interface operations
+
+---
+
+## [0.1.0] - 2026-05-28
 
 ### Added
 
