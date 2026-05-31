@@ -2,6 +2,24 @@
 
 All notable changes to Reticulum Link will be documented in this file.
 
+## [0.4.0] - 2026-05-31
+
+### Added
+
+- **LXMF Relay** — Store-and-forward message propagation engine
+  - `ReticulumLink.Lxmf.Message` — LXMF message struct with pack/unpack serialization matching Python RNS wire format (destination_hash, source_hash, signature, msgpack payload)
+  - `ReticulumLink.Lxmf.MessageStore` — ETS + DETS backed storage with TTL expiration, priority indexing, FIFO eviction, and crash recovery
+  - `ReticulumLink.Lxmf.DeliveryTracker` — Delivery receipt tracking with pending/propagated/delivered/failed states, per-peer propagation dedup, attempt limiting, and expiry cleanup
+  - `ReticulumLink.Lxmf.PropagationEngine` — Receive, deduplicate, store, and batch-propagate LXMF messages via PubSub with configurable batch size, interval, and max hops
+- **Integration** — All LXMF modules wired into `ReticulumLink.Lxmf.Supervisor`
+- **Test Suite** — 23 additional ExUnit tests covering message pack/unpack, message store CRUD, priority queue, eviction, delivery tracking, and propagation status (84 total)
+
+### Changed
+
+- mix.exs version bumped to 0.4.0
+
+---
+
 ## [0.3.0] - 2026-05-31
 
 ### Added
