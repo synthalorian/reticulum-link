@@ -50,6 +50,9 @@ defmodule ReticulumLink.MixProject do
       {:circuits_uart, "~> 1.5", optional: true},
       {:circuits_gpio, "~> 1.1", optional: true},
 
+      # Ed25519 for Reticulum identity
+      {:ed25519, "~> 1.0"},
+
       # Testing
       {:stream_data, "~> 1.1", only: [:test, :dev]},
 
