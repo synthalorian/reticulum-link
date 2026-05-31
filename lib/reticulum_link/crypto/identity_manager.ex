@@ -53,7 +53,8 @@ defmodule ReticulumLink.Crypto.IdentityManager do
   """
   @spec start_link(Keyword.t()) :: GenServer.on_start()
   def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+    name = Keyword.get(opts, :name, __MODULE__)
+    GenServer.start_link(__MODULE__, opts, name: name)
   end
 
   @doc """
@@ -147,27 +148,21 @@ defmodule ReticulumLink.Crypto.IdentityManager do
         {:ok, Map.put(state, :identity, identity)}
 
       {:error, :no_key_file} when auto_generate ->
-        # Generate new identity
-        case generate_identity() do
-          {:ok, identity} ->
-            case save_identity(state, identity) do
-              :ok ->
-                {:ok, Map.put(state, :identity, identity)}
-
-              {:error, _} ->
-                # If we can't write, still return the identity (in-memory only)
-                {:ok, Map.put(state, :identity, identity)}
-            end
-
-          {:error, reason} ->
-            {:stop, reason}
-        end
+        init_generate_identity(state)
 
       {:error, :no_key_file} when not auto_generate ->
         {:stop, :no_key_file_and_auto_generate_disabled}
 
       {:error, reason} ->
         {:stop, reason}
+    end
+  end
+
+  defp init_generate_identity(state) do
+    case generate_identity() do
+      {:ok, identity} ->
+        _ = save_identity(state, identity)
+        {:ok, Map.put(state, :identity, identity)}
     end
   end
 
@@ -210,16 +205,8 @@ defmodule ReticulumLink.Crypto.IdentityManager do
   def handle_call(:rotate, _from, state) do
     case generate_identity() do
       {:ok, identity} ->
-        case save_identity(state, identity) do
-          :ok ->
-            {:reply, {:ok, identity}, Map.put(state, :identity, identity)}
-
-          {:error, _} ->
-            {:reply, {:ok, identity}, Map.put(state, :identity, identity)}
-        end
-
-      {:error, reason} ->
-        {:reply, {:error, reason}, state}
+        _ = save_identity(state, identity)
+        {:reply, {:ok, identity}, Map.put(state, :identity, identity)}
     end
   end
 
@@ -284,14 +271,15 @@ defmodule ReticulumLink.Crypto.IdentityManager do
     with {:ok, {ed_sk, ed_pk}} <- ReticulumLink.Crypto.Identity.generate_keypair(),
          {:ok, xsk} <- ReticulumLink.Crypto.Identity.to_curve25519(ed_sk, :secret),
          {:ok, xpk} <- ReticulumLink.Crypto.Identity.to_curve25519(ed_pk, :public) do
-      identity = %{
-        ed25519_secret: ed_sk,
-        ed25519_public: ed_pk,
-        x25519_secret: xsk,
-        x25519_public: xpk
-      }
-
-      {:ok, identity}
+      {:ok,
+       %{
+         ed25519_secret: ed_sk,
+         ed25519_public: ed_pk,
+         x25519_secret: xsk,
+         x25519_public: xpk
+       }}
+    else
+      error -> error
     end
   end
 
