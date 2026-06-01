@@ -9,6 +9,7 @@ defmodule ReticulumLink.Application do
       ReticulumLink.Crypto.IdentityManager,
       {ReticulumLink.Transport.Supervisor, []},
       {ReticulumLink.Lxmf.Supervisor, []},
+      ReticulumLink.Telemetry,
       ReticulumLink.Web.Endpoint
     ]
 

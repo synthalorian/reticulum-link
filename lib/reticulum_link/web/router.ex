@@ -27,4 +27,9 @@ defmodule ReticulumLink.Web.Router do
     get "/messages", MessagesController, :index
     post "/messages", MessagesController, :create
   end
+
+  scope "/", ReticulumLink.Web do
+    get "/health", HealthController, :index
+    get "/metrics", MetricsController, :index
+  end
 end

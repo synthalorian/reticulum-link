@@ -2,6 +2,25 @@
 
 All notable changes to Reticulum Link will be documented in this file.
 
+## [0.6.0] - 2026-05-31
+
+### Added
+
+- **Observability** — Production-ready monitoring and metrics
+  - `ReticulumLink.Telemetry` — Telemetry events for all major operations: link created/closed, message received/propagated, path discovered, packet sent/received/forwarded, system memory/process counts
+  - `ReticulumLink.Web.MetricsController` — Prometheus-compatible `/metrics` endpoint with counter and gauge metrics
+  - `ReticulumLink.Web.HealthController` — `/health` endpoint for load balancers, returns 200 (healthy) or 503 (degraded) based on process liveness checks
+  - Structured logging via Logger metadata throughout controllers
+  - Telemetry poller for periodic system metrics collection (every 10s)
+- **Integration** — Telemetry wired into Application supervisor, health/metrics routes added to Router
+- **Test Suite** — 10 additional ExUnit tests covering all telemetry events and metrics list (103 total)
+
+### Changed
+
+- mix.exs version bumped to 0.6.0
+
+---
+
 ## [0.5.0] - 2026-05-31
 
 ### Added
