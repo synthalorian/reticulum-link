@@ -2,6 +2,26 @@
 
 All notable changes to Reticulum Link will be documented in this file.
 
+## [0.5.0] - 2026-05-31
+
+### Added
+
+- **Web Bridge & API** — Phoenix REST API and WebSocket channel for external clients
+  - `ReticulumLink.Web.Router` — API routes: `/api/status`, `/api/peers`, `/api/messages`
+  - `ReticulumLink.Web.StatusController` — Node status: version, uptime, link count, path count, message count, propagation state
+  - `ReticulumLink.Web.PeersController` — List known peers from PathManager with hex-encoded hashes
+  - `ReticulumLink.Web.MessagesController` — List stored LXMF messages and create new ones via POST
+  - `ReticulumLink.Web.UserSocket` + `PeersChannel` — WebSocket channel for real-time peer events, join "peers:lobby", ping/list_peers messages
+  - `ReticulumLink.Web.Plugs.Auth` — Token-based API auth (`Authorization: Bearer ***`). No tokens configured = allow all (dev mode)
+- **Integration** — Endpoint wired with socket (`/socket`) and router, all controllers functional
+- **Test Suite** — 9 additional ExUnit tests covering all API endpoints and auth plug (93 total)
+
+### Changed
+
+- mix.exs version bumped to 0.5.0
+
+---
+
 ## [0.4.0] - 2026-05-31
 
 ### Added
