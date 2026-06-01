@@ -99,12 +99,10 @@ defmodule ReticulumLink.Crypto.KeyExchange do
   def derive_shared_secret(priv, pub)
       when is_binary(priv) and is_binary(pub) and byte_size(priv) == 32 and
              byte_size(pub) == 32 do
-    try do
-      secret = :crypto.compute_key(:ecdh, pub, priv, :x25519)
-      {:ok, secret}
-    rescue
-      e -> {:error, {:shared_secret_failed, Exception.message(e)}}
-    end
+    secret = :crypto.compute_key(:ecdh, pub, priv, :x25519)
+    {:ok, secret}
+  rescue
+    e -> {:error, {:shared_secret_failed, Exception.message(e)}}
   end
 
   @doc """

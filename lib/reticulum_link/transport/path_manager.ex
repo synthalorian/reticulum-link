@@ -117,7 +117,7 @@ defmodule ReticulumLink.Transport.PathManager do
   Get all known paths.
   """
   @spec all_paths() :: [path_entry()]
-  def all_paths() do
+  def all_paths do
     GenServer.call(__MODULE__, :all_paths)
   end
 
@@ -125,7 +125,7 @@ defmodule ReticulumLink.Transport.PathManager do
   Get path count.
   """
   @spec path_count() :: non_neg_integer()
-  def path_count() do
+  def path_count do
     GenServer.call(__MODULE__, :path_count)
   end
 

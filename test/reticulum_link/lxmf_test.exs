@@ -1,7 +1,7 @@
 defmodule ReticulumLink.LxmfTest do
   use ExUnit.Case, async: true
 
-  alias ReticulumLink.Lxmf.{Message, MessageStore, DeliveryTracker}
+  alias ReticulumLink.Lxmf.{DeliveryTracker, Message, MessageStore}
 
   # ── Message Tests ───────────────────────────────────────
 

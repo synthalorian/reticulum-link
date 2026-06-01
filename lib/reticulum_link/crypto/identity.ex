@@ -26,13 +26,11 @@ defmodule ReticulumLink.Crypto.Identity do
       32
   """
   @spec generate_keypair() :: {:ok, {secret_key(), public_key()}} | {:error, atom()}
-  def generate_keypair() do
-    try do
-      {sk, pk} = Ed25519.generate_key_pair()
-      {:ok, {sk, pk}}
-    rescue
-      e -> {:error, {:generation_failed, Exception.message(e)}}
-    end
+  def generate_keypair do
+    {sk, pk} = Ed25519.generate_key_pair()
+    {:ok, {sk, pk}}
+  rescue
+    e -> {:error, {:generation_failed, Exception.message(e)}}
   end
 
   @doc """
@@ -47,12 +45,10 @@ defmodule ReticulumLink.Crypto.Identity do
   """
   @spec derive_public_key(secret_key()) :: {:ok, public_key()} | {:error, atom()}
   def derive_public_key(sk) when is_binary(sk) and byte_size(sk) == 32 do
-    try do
-      pk = Ed25519.derive_public_key(sk)
-      {:ok, pk}
-    rescue
-      e -> {:error, {:derivation_failed, Exception.message(e)}}
-    end
+    pk = Ed25519.derive_public_key(sk)
+    {:ok, pk}
+  rescue
+    e -> {:error, {:derivation_failed, Exception.message(e)}}
   end
 
   @doc """
@@ -108,11 +104,9 @@ defmodule ReticulumLink.Crypto.Identity do
   """
   @spec to_curve25519(binary(), :secret | :public) :: {:ok, binary()} | {:error, atom()}
   def to_curve25519(key, type) when is_binary(key) and type in [:secret, :public] do
-    try do
-      xkey = Ed25519.to_curve25519(key, type)
-      {:ok, xkey}
-    rescue
-      e -> {:error, {:conversion_failed, Exception.message(e)}}
-    end
+    xkey = Ed25519.to_curve25519(key, type)
+    {:ok, xkey}
+  rescue
+    e -> {:error, {:conversion_failed, Exception.message(e)}}
   end
 end

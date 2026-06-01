@@ -1,0 +1,40 @@
+# Build artifacts
+_build/
+deps/
+
+# Test artifacts
+test/
+cover/
+
+# Local config
+config/dev.exs
+config/test.exs
+
+# Git
+.git/
+.gitignore
+
+# CI
+.github/
+
+# Documentation
+doc/
+
+# Temporary files
+tmp/
+*.tmp
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+
+# Python venv
+.venv/
+
+# Erlang crash dumps
+erl_crash.dump

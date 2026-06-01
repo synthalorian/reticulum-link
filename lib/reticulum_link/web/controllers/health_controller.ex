@@ -6,8 +6,8 @@ defmodule ReticulumLink.Web.HealthController do
   """
   use Phoenix.Controller, formats: [:json]
 
-  alias ReticulumLink.Transport.{LinkManager, PathManager}
   alias ReticulumLink.Lxmf.{MessageStore, PropagationEngine}
+  alias ReticulumLink.Transport.{LinkManager, PathManager}
 
   def index(conn, _params) do
     checks = %{

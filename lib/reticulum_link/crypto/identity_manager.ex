@@ -27,6 +27,8 @@ defmodule ReticulumLink.Crypto.IdentityManager do
 
   use GenServer
 
+  alias ReticulumLink.Crypto.Identity
+
   @type identity() :: %{
           ed25519_secret: binary(),
           ed25519_public: binary(),
@@ -72,7 +74,7 @@ defmodule ReticulumLink.Crypto.IdentityManager do
       32
   """
   @spec identity() :: {:ok, identity()} | {:error, atom()}
-  def identity() do
+  def identity do
     GenServer.call(__MODULE__, :identity)
   end
 
@@ -86,7 +88,7 @@ defmodule ReticulumLink.Crypto.IdentityManager do
       64
   """
   @spec public_key_hex() :: {:ok, String.t()} | {:error, atom()}
-  def public_key_hex() do
+  def public_key_hex do
     GenServer.call(__MODULE__, :public_key_hex)
   end
 
@@ -100,7 +102,7 @@ defmodule ReticulumLink.Crypto.IdentityManager do
       64
   """
   @spec x25519_public_key_hex() :: {:ok, String.t()} | {:error, atom()}
-  def x25519_public_key_hex() do
+  def x25519_public_key_hex do
     GenServer.call(__MODULE__, :x25519_public_key_hex)
   end
 
@@ -121,7 +123,7 @@ defmodule ReticulumLink.Crypto.IdentityManager do
       true
   """
   @spec rotate() :: {:ok, identity()} | {:error, atom()}
-  def rotate() do
+  def rotate do
     GenServer.call(__MODULE__, :rotate)
   end
 
@@ -267,10 +269,10 @@ defmodule ReticulumLink.Crypto.IdentityManager do
     end
   end
 
-  defp generate_identity() do
-    with {:ok, {ed_sk, ed_pk}} <- ReticulumLink.Crypto.Identity.generate_keypair(),
-         {:ok, xsk} <- ReticulumLink.Crypto.Identity.to_curve25519(ed_sk, :secret),
-         {:ok, xpk} <- ReticulumLink.Crypto.Identity.to_curve25519(ed_pk, :public) do
+  defp generate_identity do
+    with {:ok, {ed_sk, ed_pk}} <- Identity.generate_keypair(),
+         {:ok, xsk} <- Identity.to_curve25519(ed_sk, :secret),
+         {:ok, xpk} <- Identity.to_curve25519(ed_pk, :public) do
       {:ok,
        %{
          ed25519_secret: ed_sk,

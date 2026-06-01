@@ -4,8 +4,8 @@ defmodule ReticulumLink.Web.StatusController do
   """
   use Phoenix.Controller, formats: [:json]
 
-  alias ReticulumLink.Transport.{LinkManager, PathManager}
   alias ReticulumLink.Lxmf.{MessageStore, PropagationEngine}
+  alias ReticulumLink.Transport.{LinkManager, PathManager}
 
   def index(conn, _params) do
     {:ok, link_count} = safe_call(LinkManager, :link_count, 0)

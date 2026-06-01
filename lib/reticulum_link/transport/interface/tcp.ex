@@ -137,11 +137,9 @@ defmodule ReticulumLink.Transport.Interface.Tcp do
   """
   @spec connected?(atom()) :: boolean()
   def connected?(name \\ __MODULE__) do
-    try do
-      GenServer.call(name, :connected?)
-    catch
-      :exit, _ -> false
-    end
+    GenServer.call(name, :connected?)
+  catch
+    :exit, _ -> false
   end
 
   # ===========================================================================
