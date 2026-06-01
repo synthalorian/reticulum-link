@@ -51,6 +51,26 @@ defmodule ReticulumLink.Crypto.KeyExchange do
   end
 
   @doc """
+  Derive an X25519 keypair directly, returning raw binaries (no tuple wrapper).
+
+  ## Examples
+
+      iex> {:ok, {ed_sk, ed_pk}} = ReticulumLink.Crypto.Identity.generate_keypair()
+      iex> {xsk, xpk} = ReticulumLink.Crypto.KeyExchange.derive_keypair!(ed_sk, ed_pk)
+      iex> byte_size(xsk)
+      32
+  """
+  @spec derive_keypair!(Identity.secret_key(), Identity.public_key()) ::
+          {private_key(), public_key()}
+  def derive_keypair!(ed_sk, ed_pk)
+      when is_binary(ed_sk) and is_binary(ed_pk) and byte_size(ed_sk) == 32 and
+             byte_size(ed_pk) == 32 do
+    xsk = Ed25519.to_curve25519(ed_sk, :secret)
+    xpk = Ed25519.to_curve25519(ed_pk, :public)
+    {xsk, xpk}
+  end
+
+  @doc """
   Derive an X25519 public key from an Ed25519 public key.
 
   ## Examples

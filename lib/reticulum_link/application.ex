@@ -13,6 +13,14 @@ defmodule ReticulumLink.Application do
       ReticulumLink.Web.Endpoint
     ]
 
+    # Add Nerves init on embedded targets
+    children =
+      if Mix.target() != :host do
+        children ++ [{Task, fn -> ReticulumLink.Nerves.init() end}]
+      else
+        children
+      end
+
     opts = [strategy: :one_for_one, name: ReticulumLink.Supervisor]
     Supervisor.start_link(children, opts)
   end

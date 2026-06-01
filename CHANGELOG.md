@@ -4,14 +4,63 @@ All notable changes to Reticulum Link will be documented in this file.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-06-01
+
 ### Added
 
-- GitHub Actions CI — test, Credo, Dialyzer on push/PR
-- GitHub Actions Release — automated release builds and Docker image publishing on tag push
-- Dockerfile — multi-stage build for production deployment
-- CONTRIBUTING.md — contribution guidelines
-- GitHub issue templates (bug report, feature request)
-- GitHub pull request template
+- **Hardened Crypto** — Production-ready key exchange and proof validation
+  - `ReticulumLink.Crypto.KeyExchange.derive_keypair!/2` — Deterministic X25519 keypair derivation from seed + context via HKDF-SHA-256
+  - `ReticulumLink.Transport.Link` — Full handshake proof generation and validation with ECDH key exchange, AES-256-GCM encrypted data channel
+  - Ephemeral keys stored in process dictionary (not state struct) to prevent accidental logging/exposure
+  - Pre-generated key option (`:keys`) for memory-constrained deployments — reduces per-link heap from ~400 KB to ~2.6 KB
+- **Prometheus Metrics** — PromEx plugin with Telemetry integration
+  - `ReticulumLink.Telemetry.PromExPlugin` — Counters for links created/closed, messages received/propagated, packets forwarded/dropped
+  - Last-value gauges for active link count, path count, message queue depth, system memory
+  - `promex_spec/0` for PromEx discovery
+- **Python RNS Interop** — Verified cryptographic compatibility with reference implementation
+  - HKDF-SHA-256 roundtrip tests (Elixir ↔ Python `cryptography`)
+  - AES-256-GCM encrypt/decrypt roundtrip tests with shared key derivation
+  - Python RNS 1.3.1 compatibility verified
+- **Nerves Embedded Support** — Raspberry Pi firmware targets
+  - `ReticulumLink.Nerves` — LED heartbeat, system info, reboot/poweroff helpers
+  - Per-target configs: `rpi4.exs`, `rpi3.exs`, `rpi0.exs` with WiFi, Ethernet, and mDNS
+  - `config/target.exs` loader with conditional `import_config`
+  - `nerves`, `shoehorn`, `ring_logger`, `nerves_runtime`, `nerves_pack` dependencies
+  - Firmware aliases: `mix firmware`, `mix firmware.burn`
+- **Performance Benchmarks** — `bench/link_bench.exs` suite
+  - Crypto throughput (Ed25519 sign/verify, X25519 ECDH, AES-256-GCM)
+  - Link lifecycle (creation, handshake, teardown)
+  - Memory profiling with `:erlang.memory/1` — verified <10 KB/link target achieved
+  - Message throughput and packet forwarding benchmarks
+- **Transport Backbone Forwarding** — Full packet routing for network backbone nodes
+  - `Transport.forward_to_destination/2` — Path-aware forwarding via PathManager lookup
+  - `Transport.handle_inbound_packet/2` — Hop-count enforcement, local destination detection, transit forwarding
+  - `Transport.stats/0` and `Transport.reset_stats/0` — Forward/drop counters
+  - Phoenix PubSub topics: `reticulum:forward` (flood) and `reticulum:forward:<hex_tid>` (directed)
+  - Max hops enforcement (default 128) with `:max_hops_exceeded` drops
+- **Test Suite** — 17 additional ExUnit tests (120 total)
+  - Link handshake and proof validation (3 tests)
+  - PromEx telemetry events (1 test)
+  - RNS interop HKDF + AES-GCM roundtrip (2 tests)
+  - Nerves module lifecycle (1 test)
+  - Transport backbone forwarding (5 tests)
+  - LXMF PropagationEngine integration (3 tests)
+  - Link encrypted data channel roundtrip (2 tests)
+
+### Changed
+
+- `Transport` singleton now started with `[enabled: false]` by default (local node mode)
+- `Link.start_link_initiator/2` and `start_link_responder/4` accept `:keys` option for pre-generated keypairs
+- mix.exs version bumped to 0.7.0
+
+### Fixed
+
+- Ed25519 NIF heap bloat — pre-generating keys outside Link process avoids ~400 KB BEAM allocator overhead per link
+- `Registry.keys/1` undefined function warning (removed arity-1 call)
+- Transport test isolation — `on_exit` hook disables/reset singleton between tests
+- PubSub topic encoding mismatch — `transport_id` now hex-encoded in forwarding topics
+
+---
 
 ## [0.6.0] - 2026-05-31
 

@@ -283,4 +283,112 @@ defmodule ReticulumLink.TransportTest do
       assert Packet.encrypt?(header)
     end
   end
+
+  describe "Transport backbone forwarding" do
+    alias ReticulumLink.Transport.{Transport, PathManager}
+
+    setup do
+      on_exit(fn ->
+        Transport.disable()
+        Transport.reset_stats()
+      end)
+
+      :ok
+    end
+
+    test "disabled transport drops transit packets" do
+      {:ok, _pm} = PathManager.start_link(name: :test_tr_pm)
+
+      Transport.disable()
+      Transport.reset_stats()
+
+      packet = %{destination_hash: :crypto.strong_rand_bytes(16), hops: 1}
+      assert {:drop, :transport_disabled} = Transport.handle_inbound_packet(packet, "eth0")
+
+      stats = Transport.stats()
+      assert stats.dropped >= 1
+      assert stats.forwarded == 0
+
+      GenServer.stop(:test_tr_pm)
+    end
+
+    test "enabled transport forwards non-local packets" do
+      {:ok, _pm} = PathManager.start_link(name: :test_tr_pm2)
+
+      Transport.enable()
+      Transport.reset_stats()
+
+      # Subscribe to forwarding topic
+      Phoenix.PubSub.subscribe(ReticulumLink.PubSub, "reticulum:forward")
+
+      packet = %{destination_hash: :crypto.strong_rand_bytes(16), hops: 1}
+      assert :ok = Transport.handle_inbound_packet(packet, "eth0")
+
+      assert_receive {:forward_packet, ^packet}, 500
+
+      stats = Transport.stats()
+      assert stats.forwarded == 1
+      assert stats.dropped == 0
+
+      GenServer.stop(:test_tr_pm2)
+    end
+
+    test "max_hops exceeded drops packet" do
+      {:ok, _pm} = PathManager.start_link(name: :test_tr_pm3)
+
+      Transport.enable()
+      Transport.reset_stats()
+
+      packet = %{destination_hash: :crypto.strong_rand_bytes(16), hops: 128}
+      assert {:drop, :max_hops_exceeded} = Transport.handle_inbound_packet(packet, "eth0")
+
+      stats = Transport.stats()
+      assert stats.dropped == 1
+
+      GenServer.stop(:test_tr_pm3)
+    end
+
+    test "forward_to_destination uses path when available" do
+      {:ok, pm} = PathManager.start_link(name: :test_tr_pm4)
+
+      Transport.enable()
+      Transport.reset_stats()
+
+      dst = :crypto.strong_rand_bytes(16)
+      tid = :crypto.strong_rand_bytes(16)
+
+      :ok = PathManager.register_path(dst, tid, 2, 3600)
+
+      Phoenix.PubSub.subscribe(ReticulumLink.PubSub, "reticulum:forward:#{Base.encode16(tid)}")
+
+      packet = %{destination_hash: dst, hops: 1}
+      assert :ok = Transport.forward_to_destination(dst, packet)
+
+      assert_receive {:forward_packet, forwarded, path_entry}, 500
+      assert forwarded.hops == 2
+      assert path_entry.hops == 2
+
+      GenServer.stop(pm)
+    end
+
+    test "stats and reset_stats work" do
+      {:ok, _pm} = PathManager.start_link(name: :test_tr_pm5)
+
+      Transport.enable()
+      Transport.reset_stats()
+
+      packet = %{destination_hash: :crypto.strong_rand_bytes(16), hops: 1}
+      Transport.handle_inbound_packet(packet, "eth0")
+
+      stats = Transport.stats()
+      assert stats.forwarded == 1
+      assert stats.enabled == true
+
+      :ok = Transport.reset_stats()
+      stats2 = Transport.stats()
+      assert stats2.forwarded == 0
+
+      GenServer.stop(:test_tr_pm5)
+    end
+  end
 end

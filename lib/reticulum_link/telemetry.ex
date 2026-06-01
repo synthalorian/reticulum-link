@@ -75,7 +75,107 @@ defmodule ReticulumLink.Telemetry do
     :telemetry.execute([:reticulum_link, :system, :process], %{count: process_count}, %{})
   end
 
-  # ── Helper functions to emit events from other modules ──
+  defmodule ReticulumLink.Telemetry.PromExPlugin do
+    @moduledoc """
+    Custom PromEx plugin that wires Telemetry events to Prometheus metrics.
+    """
+    use PromEx.Plugin
+
+    alias PromEx.MetricTypes.Event
+
+    @link_created_event [:reticulum_link, :link, :created]
+    @link_closed_event [:reticulum_link, :link, :closed]
+    @message_received_event [:reticulum_link, :message, :received]
+    @message_propagated_event [:reticulum_link, :message, :propagated]
+    @packet_sent_event [:reticulum_link, :transport, :packet, :sent]
+    @packet_received_event [:reticulum_link, :transport, :packet, :received]
+    @packet_forwarded_event [:reticulum_link, :transport, :packet, :forwarded]
+
+    @impl true
+    def event_metrics(_opts) do
+      metric_prefix = [:reticulum_link]
+
+      Event.build(
+        :reticulum_link_events,
+        [
+          # Link counters
+          counter(metric_prefix ++ [:link, :created, :total],
+            event_name: @link_created_event,
+            description: "Total number of links created"
+          ),
+          counter(metric_prefix ++ [:link, :closed, :total],
+            event_name: @link_closed_event,
+            description: "Total number of links closed"
+          ),
+
+          # Message counters
+          counter(metric_prefix ++ [:message, :received, :total],
+            event_name: @message_received_event,
+            description: "Total LXMF messages received"
+          ),
+          counter(metric_prefix ++ [:message, :propagated, :total],
+            event_name: @message_propagated_event,
+            description: "Total LXMF messages propagated"
+          ),
+
+          # Packet counters
+          counter(metric_prefix ++ [:packet, :sent, :total],
+            event_name: @packet_sent_event,
+            measurement: :bytes,
+            description: "Total bytes sent"
+          ),
+          counter(metric_prefix ++ [:packet, :received, :total],
+            event_name: @packet_received_event,
+            measurement: :bytes,
+            description: "Total bytes received"
+          ),
+          counter(metric_prefix ++ [:packet, :forwarded, :total],
+            event_name: @packet_forwarded_event,
+            measurement: :bytes,
+            description: "Total bytes forwarded"
+          )
+        ]
+      )
+    end
+
+    @impl true
+    def polling_metrics(_opts) do
+      metric_prefix = [:reticulum_link]
+
+      Event.build(
+        :reticulum_link_polling,
+        [
+          last_value(metric_prefix ++ [:link, :active],
+            description: "Current number of active links"
+          ),
+          last_value(metric_prefix ++ [:message, :stored],
+            description: "Current messages in store"
+          ),
+          last_value(metric_prefix ++ [:path, :active],
+            description: "Current active paths"
+          ),
+          last_value(metric_prefix ++ [:system, :memory, :bytes],
+            description: "Current memory usage in bytes"
+          ),
+          last_value(metric_prefix ++ [:system, :process, :count],
+            description: "Current process count"
+          )
+        ]
+      )
+    end
+  end
+
+  @doc """
+  Build PromEx specification with all plugins.
+  """
+  def promex_spec do
+    [
+      # BEAM VM metrics (processes, memory, schedulers)
+      {PromEx.Plugins.Beam, otp_app: :reticulum_link},
+      # Application metrics
+      {ReticulumLink.Telemetry.PromExPlugin, []}
+    ]
+  end
 
   @doc "Emit link created event"
   def link_created(link_id, meta \\ %{}) do

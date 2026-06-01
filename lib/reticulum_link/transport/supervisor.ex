@@ -33,8 +33,8 @@ defmodule ReticulumLink.Transport.Supervisor do
       # Announce handler — dedup, cache, forward
       ReticulumLink.Transport.AnnounceHandler,
 
-      # Transport mode coordinator
-      ReticulumLink.Transport.Transport
+      # Transport mode coordinator (disabled by default)
+      {ReticulumLink.Transport.Transport, [enabled: false]}
     ]
 
     Logger.info("Transport supervisor started")

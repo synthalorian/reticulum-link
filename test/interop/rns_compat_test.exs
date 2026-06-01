@@ -88,15 +88,35 @@ defmodule ReticulumLink.Interop.RnsCompatTest do
   end
 
   describe "Hash compatibility" do
-    test "SHA-256 matches Python hashlib" do
-      data = "test data for hashing"
+    test "HKDF-SHA-256 matches Python cryptography" do
+      ikm = :crypto.strong_rand_bytes(32)
+      salt = :crypto.strong_rand_bytes(32)
+      info = "reticulum-link-test"
+      length = 32
 
-      elixir_hash = Hash.sha256(data)
+      elixir_okm = Hash.hkdf(ikm, salt, info, length)
 
-      result = run_python("sha256", %{"data" => data})
-      python_hash = Base.decode16!(result["hash"], case: :lower)
+      result = run_python("hkdf", %{
+        "ikm" => Base.encode16(ikm, case: :lower),
+        "salt" => Base.encode16(salt, case: :lower),
+        "info" => info,
+        "length" => length
+      })
 
-      assert elixir_hash == python_hash
+      python_okm = Base.decode16!(result["okm"], case: :lower)
+
+      assert elixir_okm == python_okm
+    end
+
+    test "AES-256-GCM encrypt/decrypt roundtrip" do
+      key = :crypto.strong_rand_bytes(32)
+      nonce = :crypto.strong_rand_bytes(12)
+      plaintext = "secret reticulum message"
+
+      {:ok, encrypted} = ReticulumLink.Crypto.Cipher.encrypt(plaintext, key, nonce)
+      {:ok, decrypted} = ReticulumLink.Crypto.Cipher.decrypt(encrypted, key, nonce)
+
+      assert decrypted == plaintext
     end
   end
 
