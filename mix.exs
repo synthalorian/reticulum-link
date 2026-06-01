@@ -1,7 +1,7 @@
 defmodule ReticulumLink.MixProject do
   use Mix.Project
 
-  @version "0.6.0"
+  @version "0.7.0"
 
   def project do
     [
@@ -26,9 +26,12 @@ defmodule ReticulumLink.MixProject do
   def application do
     [
       mod: {ReticulumLink.Application, []},
-      extra_applications: [:logger, :runtime_tools, :crypto, :os_mon]
+      extra_applications: [:logger, :runtime_tools, :crypto, :os_mon] ++ extra_applications(Mix.target())
     ]
   end
+
+  defp extra_applications(:host), do: []
+  defp extra_applications(_target), do: [:nerves_runtime, :nerves_pack]
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
@@ -50,6 +53,18 @@ defmodule ReticulumLink.MixProject do
       {:circuits_uart, "~> 1.5", optional: true},
       {:circuits_gpio, "~> 1.1", optional: true},
 
+      # Nerves (embedded)
+      {:nerves, "~> 1.10", runtime: false},
+      {:shoehorn, "~> 0.9"},
+      {:ring_logger, "~> 0.11"},
+      {:nerves_runtime, "~> 0.13"},
+      {:nerves_pack, "~> 0.7"},
+
+      # Target-specific systems (optional, fetched on demand)
+      {:nerves_system_rpi4, "~> 1.29", runtime: false, targets: :rpi4},
+      {:nerves_system_rpi3, "~> 1.29", runtime: false, targets: :rpi3},
+      {:nerves_system_rpi0, "~> 1.29", runtime: false, targets: :rpi0},
+
       # Ed25519 for Reticulum identity
       {:ed25519, "~> 1.0"},
 
@@ -67,14 +82,16 @@ defmodule ReticulumLink.MixProject do
     [
       reticulum_link: [
         include_executables_for: [:unix],
-        applications: [runtime_tools: :include]
+        applications: [runtime_tools: :permanent]
       ]
     ]
   end
 
   defp aliases do
     [
-      setup: ["deps.get", "compile"]
+      setup: ["deps.get", "compile"],
+      firmware: ["deps.get", "compile", "firmware"],
+      "firmware.burn": ["firmware.burn"]
     ]
   end
 end

@@ -199,7 +199,7 @@ defmodule ReticulumLink.LxmfTest do
       assert {:error, :message_too_large} = MessageStore.store(store, packed)
     end
 
-    test "eviction removes oldest when at capacity", %{store: store} do
+    test "eviction removes oldest when at capacity", %{store: _store} do
       dest = :crypto.strong_rand_bytes(16)
       src = :crypto.strong_rand_bytes(16)
 
@@ -340,5 +340,132 @@ defmodule ReticulumLink.LxmfTest do
       assert stats.failed == 1
       assert stats.total == 4
     end
+  end
+
+  describe "PropagationEngine integration" do
+    alias ReticulumLink.Lxmf.PropagationEngine
+
+    test "propagation engine stores and propagates messages" do
+      {:ok, store} =
+        MessageStore.start_link(
+          dets_path: tmp_dets_path(),
+          max_messages: 100,
+          name: :test_prop_store
+        )
+
+      {:ok, tracker} =
+        DeliveryTracker.start_link(name: :test_prop_tracker)
+
+      {:ok, engine} =
+        PropagationEngine.start_link(
+          message_store: store,
+          delivery_tracker: tracker,
+          batch_interval: 100,
+          name: :test_prop_engine
+        )
+
+      # Subscribe to propagation topic
+      Phoenix.PubSub.subscribe(ReticulumLink.PubSub, "lxmf:propagate")
+
+      # Create and receive a message
+      dest = :crypto.strong_rand_bytes(16)
+      src = :crypto.strong_rand_bytes(16)
+      msg = Message.new(dest, src, "propagation test")
+      {:ok, packed} = Message.pack(msg)
+
+      assert :ok = PropagationEngine.receive_message(engine, packed)
+
+      # Trigger propagation
+      assert :ok = PropagationEngine.propagate_now(engine)
+
+      # Should receive broadcast
+      assert_receive {:lxmf_propagate, _msg, _hops}, 500
+
+      # Check delivery tracker status
+      {:ok, status} = DeliveryTracker.status(tracker, packed.hash)
+      assert status.status in [:propagated, :pending]
+
+      GenServer.stop(engine)
+      GenServer.stop(tracker)
+      GenServer.stop(store)
+    end
+
+    test "deduplication rejects duplicate messages" do
+      {:ok, store} =
+        MessageStore.start_link(
+          dets_path: tmp_dets_path(),
+          max_messages: 100,
+          name: :test_dedup_store
+        )
+
+      {:ok, tracker} =
+        DeliveryTracker.start_link(name: :test_dedup_tracker)
+
+      {:ok, engine} =
+        PropagationEngine.start_link(
+          message_store: store,
+          delivery_tracker: tracker,
+          name: :test_dedup_engine
+        )
+
+      dest = :crypto.strong_rand_bytes(16)
+      src = :crypto.strong_rand_bytes(16)
+      msg = Message.new(dest, src, "dedup test")
+      {:ok, packed} = Message.pack(msg)
+
+      # First receive succeeds
+      assert :ok = PropagationEngine.receive_message(engine, packed)
+
+      # Second receive fails as duplicate
+      assert {:error, :duplicate} = PropagationEngine.receive_message(engine, packed)
+
+      GenServer.stop(engine)
+      GenServer.stop(tracker)
+      GenServer.stop(store)
+    end
+
+    test "disable stops propagation" do
+      {:ok, store} =
+        MessageStore.start_link(
+          dets_path: tmp_dets_path(),
+          max_messages: 100,
+          name: :test_disable_store
+        )
+
+      {:ok, tracker} =
+        DeliveryTracker.start_link(name: :test_disable_tracker)
+
+      {:ok, engine} =
+        PropagationEngine.start_link(
+          message_store: store,
+          delivery_tracker: tracker,
+          batch_interval: 50,
+          name: :test_disable_engine
+        )
+
+      Phoenix.PubSub.subscribe(ReticulumLink.PubSub, "lxmf:propagate")
+
+      # Disable propagation
+      :ok = PropagationEngine.disable(engine)
+
+      dest = :crypto.strong_rand_bytes(16)
+      src = :crypto.strong_rand_bytes(16)
+      msg = Message.new(dest, src, "disabled test")
+      {:ok, packed} = Message.pack(msg)
+
+      :ok = PropagationEngine.receive_message(engine, packed)
+      :ok = PropagationEngine.propagate_now(engine)
+
+      # Should NOT receive broadcast
+      refute_receive {:lxmf_propagate, _, _}, 200
+
+      GenServer.stop(engine)
+      GenServer.stop(tracker)
+      GenServer.stop(store)
+    end
+  end
+
+  defp tmp_dets_path do
+    Path.join(System.tmp_dir!(), "test_#{:erlang.unique_integer([:positive])}.dets")
   end
 end

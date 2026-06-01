@@ -44,9 +44,8 @@ defmodule ReticulumLink.Transport.Link do
   @timeout 900
   @establishment_timeout_per_hop 6
 
-  # Key sizes
-  @ec_pub_size 32
-  @sig_length 64
+  # Proof structure: <<link_id::16, peer_x25519_pub::32, peer_ed25519_pub::32, signature::64>>
+  @proof_size 16 + 32 + 32 + 64
 
   @typedoc "Link state"
   @type status :: :pending | :handshake | :active | :stale | :closed
@@ -107,21 +106,33 @@ defmodule ReticulumLink.Transport.Link do
   * `opts` — Options:
     * `:name` — Process name
     * `:mtu` — Link MTU (default: 500)
+    * `:keys` — Pre-generated key bundle (see `generate_keys/0`).
+      If not provided, keys are generated inside the process (slower, larger heap).
   """
   @spec start_link_initiator(binary(), Keyword.t()) :: GenServer.on_start()
   def start_link_initiator(destination_hash, opts \\ []) do
     name = Keyword.get(opts, :name, generate_link_name())
+    keys = Keyword.get(opts, :keys)
 
-    GenServer.start_link(
-      __MODULE__,
-      %{
-        mode: :initiator,
-        destination_hash: destination_hash,
-        mtu: Keyword.get(opts, :mtu, 500),
-        name: name
-      },
-      name: name
-    )
+    init_args =
+      if keys do
+        %{
+          mode: :initiator,
+          destination_hash: destination_hash,
+          mtu: Keyword.get(opts, :mtu, 500),
+          name: name,
+          keys: keys
+        }
+      else
+        %{
+          mode: :initiator,
+          destination_hash: destination_hash,
+          mtu: Keyword.get(opts, :mtu, 500),
+          name: name
+        }
+      end
+
+    GenServer.start_link(__MODULE__, init_args, name: name)
   end
 
   @doc """
@@ -132,9 +143,9 @@ defmodule ReticulumLink.Transport.Link do
   @spec start_link_responder(binary(), binary(), binary(), Keyword.t()) :: GenServer.on_start()
   def start_link_responder(destination_hash, peer_pub, peer_sig_pub, opts \\ []) do
     name = Keyword.get(opts, :name, generate_link_name())
+    keys = Keyword.get(opts, :keys)
 
-    GenServer.start_link(
-      __MODULE__,
+    init_args =
       %{
         mode: :responder,
         destination_hash: destination_hash,
@@ -142,9 +153,36 @@ defmodule ReticulumLink.Transport.Link do
         peer_sig_pub: peer_sig_pub,
         mtu: Keyword.get(opts, :mtu, 500),
         name: name
-      },
-      name: name
-    )
+      }
+
+    init_args = if keys, do: Map.put(init_args, :keys, keys), else: init_args
+
+    GenServer.start_link(__MODULE__, init_args, name: name)
+  end
+
+  @doc """
+  Generate a key bundle for link creation.
+
+  Returns a map with pre-derived keys that can be passed to
+  `start_link_initiator/2` or `start_link_responder/4` via
+  the `:keys` option to avoid heap bloat from in-process crypto.
+  """
+  @spec generate_keys() :: map()
+  def generate_keys do
+    {:ok, {ephemeral_sk, ephemeral_pk}} = Identity.generate_keypair()
+    {:ok, {sig_sk, sig_pk}} = Identity.generate_keypair()
+    {x25519_sk, x25519_pk} = KeyExchange.derive_keypair!(ephemeral_sk, ephemeral_pk)
+    link_id = Hash.sha256(ephemeral_pk <> sig_pk) |> binary_part(0, 16)
+
+    %{
+      link_id: link_id,
+      ephemeral_sk: ephemeral_sk,
+      ephemeral_pk: ephemeral_pk,
+      sig_sk: sig_sk,
+      sig_pk: sig_pk,
+      x25519_sk: x25519_sk,
+      x25519_pk: x25519_pk
+    }
   end
 
   @doc """
@@ -182,7 +220,30 @@ defmodule ReticulumLink.Transport.Link do
   end
 
   @doc """
-  Process a link proof (LRPROOF packet).
+  Generate a link proof (LRPROOF) for handshake completion.
+
+  The proof is a signed attestation of the link_id and peer public keys,
+  proving possession of the ephemeral signing key.
+
+  ## Proof format
+
+      <<link_id::binary-size(16),
+        x25519_public::binary-size(32),
+        ed25519_public::binary-size(32),
+        signature::binary-size(64)>>
+
+  Total: 144 bytes
+  """
+  @spec generate_proof(atom()) :: {:ok, binary()} | {:error, atom()}
+  def generate_proof(name) do
+    GenServer.call(name, :generate_proof)
+  end
+
+  @doc """
+  Process a link proof (LRPROOF packet) from the peer.
+
+  Validates the proof signature and transitions the link to ACTIVE
+  if the proof is cryptographically valid.
   """
   @spec handle_proof(atom(), binary()) :: :ok | {:error, atom()}
   def handle_proof(name, proof_data) when is_binary(proof_data) do
@@ -203,11 +264,29 @@ defmodule ReticulumLink.Transport.Link do
 
   @impl true
   def init(%{mode: :initiator, destination_hash: dst_hash} = args) do
-    # Generate ephemeral keys
-    {:ok, {ephemeral_sk, ephemeral_pk}} = Identity.generate_keypair()
-    {:ok, {sig_sk, sig_pk}} = Identity.generate_keypair()
+    keys = Map.get(args, :keys)
+
+    {link_id, ephemeral_sk, ephemeral_pk, sig_sk, sig_pk, x25519_sk, x25519_pk} =
+      if keys do
+        {
+          keys.link_id,
+          keys.ephemeral_sk,
+          keys.ephemeral_pk,
+          keys.sig_sk,
+          keys.sig_pk,
+          keys.x25519_sk,
+          keys.x25519_pk
+        }
+      else
+        {:ok, {esk, epk}} = Identity.generate_keypair()
+        {:ok, {ssk, spk}} = Identity.generate_keypair()
+        {xsk, xpk} = KeyExchange.derive_keypair!(esk, epk)
+        lid = Hash.sha256(epk <> spk) |> binary_part(0, 16)
+        {lid, esk, epk, ssk, spk, xsk, xpk}
+      end
 
     state = %__MODULE__{
+      link_id: link_id,
       status: :pending,
       initiator: true,
       destination_hash: dst_hash,
@@ -221,6 +300,8 @@ defmodule ReticulumLink.Transport.Link do
     Process.put(:ephemeral_pk, ephemeral_pk)
     Process.put(:sig_sk, sig_sk)
     Process.put(:sig_pk, sig_pk)
+    Process.put(:x25519_sk, x25519_sk)
+    Process.put(:x25519_pk, x25519_pk)
 
     # Start watchdog timer
     schedule_watchdog(self())
@@ -237,11 +318,29 @@ defmodule ReticulumLink.Transport.Link do
           peer_sig_pub: peer_sig_pub
         } = args
       ) do
-    # Generate ephemeral keys
-    {:ok, {ephemeral_sk, ephemeral_pk}} = Identity.generate_keypair()
-    {:ok, {sig_sk, sig_pk}} = Identity.generate_keypair()
+    keys = Map.get(args, :keys)
+
+    {link_id, ephemeral_sk, ephemeral_pk, sig_sk, sig_pk, x25519_sk, x25519_pk} =
+      if keys do
+        {
+          keys.link_id,
+          keys.ephemeral_sk,
+          keys.ephemeral_pk,
+          keys.sig_sk,
+          keys.sig_pk,
+          keys.x25519_sk,
+          keys.x25519_pk
+        }
+      else
+        {:ok, {esk, epk}} = Identity.generate_keypair()
+        {:ok, {ssk, spk}} = Identity.generate_keypair()
+        {xsk, xpk} = KeyExchange.derive_keypair!(esk, epk)
+        lid = Hash.sha256(epk <> spk) |> binary_part(0, 16)
+        {lid, esk, epk, ssk, spk, xsk, xpk}
+      end
 
     state = %__MODULE__{
+      link_id: link_id,
       status: :handshake,
       initiator: false,
       destination_hash: dst_hash,
@@ -256,6 +355,8 @@ defmodule ReticulumLink.Transport.Link do
     Process.put(:ephemeral_pk, ephemeral_pk)
     Process.put(:sig_sk, sig_sk)
     Process.put(:sig_pk, sig_pk)
+    Process.put(:x25519_sk, x25519_sk)
+    Process.put(:x25519_pk, x25519_pk)
 
     # Perform handshake immediately
     new_state = perform_handshake(state)
@@ -309,8 +410,32 @@ defmodule ReticulumLink.Transport.Link do
   end
 
   @impl true
+  def handle_call(:generate_proof, _from, %{status: status} = state)
+      when status in [:pending, :handshake] do
+    sig_sk = Process.get(:sig_sk)
+    x25519_pk = Process.get(:x25519_pk)
+    sig_pk = Process.get(:sig_pk)
+    link_id = state.link_id
+
+    if sig_sk && x25519_pk && sig_pk && link_id do
+      # Sign: link_id || x25519_pk || ed25519_pk
+      data_to_sign = link_id <> x25519_pk <> sig_pk
+      signature = Identity.sign(data_to_sign, sig_sk)
+
+      proof = link_id <> x25519_pk <> sig_pk <> signature
+      {:reply, {:ok, proof}, state}
+    else
+      {:reply, {:error, :missing_keys}, state}
+    end
+  end
+
+  @impl true
+  def handle_call(:generate_proof, _from, state) do
+    {:reply, {:error, :invalid_link_state}, state}
+  end
+
+  @impl true
   def handle_call({:handle_proof, proof_data}, _from, %{status: :handshake} = state) do
-    # Validate proof and transition to active
     case validate_proof(state, proof_data) do
       :ok ->
         new_state = %{state | status: :active, last_inbound: DateTime.utc_now()}
@@ -403,11 +528,11 @@ defmodule ReticulumLink.Transport.Link do
   # ===========================================================================
 
   defp perform_handshake(state) do
-    ephemeral_sk = Process.get(:ephemeral_sk)
+    x25519_sk = Process.get(:x25519_sk)
     peer_pub = state.peer_pub
 
-    if ephemeral_sk && peer_pub do
-      {:ok, shared_key} = KeyExchange.derive_shared_secret(ephemeral_sk, peer_pub)
+    if x25519_sk && peer_pub do
+      {:ok, shared_key} = KeyExchange.derive_shared_secret(x25519_sk, peer_pub)
 
       derived_key = derive_link_key(shared_key, state.link_id)
 
@@ -431,14 +556,40 @@ defmodule ReticulumLink.Transport.Link do
     Cipher.decrypt_with_nonce(data, key)
   end
 
-  defp validate_proof(_state, proof_data) do
-    # Proof validation: verify signature over link_id + pubkeys
-    # For now, accept all valid-length proofs
-    if byte_size(proof_data) >= @sig_length + @ec_pub_size do
-      :ok
+  defp validate_proof(state, proof_data) when byte_size(proof_data) == @proof_size do
+    <<link_id::binary-size(16), peer_x25519_pub::binary-size(32), peer_ed25519_pub::binary-size(32),
+      signature::binary-size(64)>> = proof_data
+
+    # Verify link_id matches
+    if link_id != state.link_id do
+      {:error, :link_id_mismatch}
     else
-      {:error, :invalid_proof}
+      # Verify signature over link_id || x25519_pub || ed25519_pub
+      data = link_id <> peer_x25519_pub <> peer_ed25519_pub
+
+      if Identity.verify(data, signature, peer_ed25519_pub) do
+        # Store peer keys for encryption
+        Process.put(:peer_x25519_pub, peer_x25519_pub)
+        Process.put(:peer_ed25519_pub, peer_ed25519_pub)
+
+        # Derive shared secret with peer's X25519 public key
+        x25519_sk = Process.get(:x25519_sk)
+        if x25519_sk && peer_x25519_pub do
+          {:ok, shared_key} = KeyExchange.derive_shared_secret(x25519_sk, peer_x25519_pub)
+          derived_key = derive_link_key(shared_key, state.link_id)
+          Process.put(:shared_key, shared_key)
+          Process.put(:derived_key, derived_key)
+        end
+
+        :ok
+      else
+        {:error, :invalid_signature}
+      end
     end
+  end
+
+  defp validate_proof(_state, proof_data) do
+    {:error, {:invalid_proof_size, byte_size(proof_data)}}
   end
 
   defp calculate_mdu(mtu) do

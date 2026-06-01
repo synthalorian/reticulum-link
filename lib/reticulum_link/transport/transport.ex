@@ -71,6 +71,32 @@ defmodule ReticulumLink.Transport.Transport do
     GenServer.call(__MODULE__, {:handle_inbound, packet, interface})
   end
 
+  @doc """
+  Forward a packet to a specific destination hash via the best path.
+
+  Looks up the path in PathManager and broadcasts on the forwarding topic.
+  """
+  @spec forward_to_destination(binary(), map()) :: :ok | {:error, atom()}
+  def forward_to_destination(destination_hash, packet) do
+    GenServer.call(__MODULE__, {:forward_to, destination_hash, packet})
+  end
+
+  @doc """
+  Get transport statistics.
+  """
+  @spec stats() :: map()
+  def stats do
+    GenServer.call(__MODULE__, :stats)
+  end
+
+  @doc """
+  Reset statistics counters.
+  """
+  @spec reset_stats() :: :ok
+  def reset_stats do
+    GenServer.call(__MODULE__, :reset_stats)
+  end
+
   # ===========================================================================
   # Server callbacks
   # ===========================================================================
@@ -130,6 +156,57 @@ defmodule ReticulumLink.Transport.Transport do
   end
 
   @impl true
+  def handle_call({:forward_to, destination_hash, packet}, _from, state) do
+    if not state.enabled do
+      {:reply, {:error, :transport_disabled}, state}
+    else
+      hops = Map.get(packet, :hops, 0)
+
+      if hops >= state.max_hops do
+        {:reply, {:error, :max_hops_exceeded}, %{state | dropped: state.dropped + 1}}
+      else
+        # Look up path and forward
+        case ReticulumLink.Transport.PathManager.lookup_path(destination_hash) do
+          {:ok, path_entry} ->
+            forwarded = increment_hops(packet)
+
+            tid = path_entry.transport_id
+            topic = if tid, do: "reticulum:forward:#{Base.encode16(tid)}", else: "reticulum:forward:broadcast"
+
+            Phoenix.PubSub.broadcast(
+              ReticulumLink.PubSub,
+              topic,
+              {:forward_packet, forwarded, path_entry}
+            )
+
+            {:reply, :ok, %{state | forwarded: state.forwarded + 1}}
+
+          {:error, :no_path} ->
+            # Flood to all interfaces
+            forward_packet(packet)
+            {:reply, :ok, %{state | forwarded: state.forwarded + 1}}
+        end
+      end
+    end
+  end
+
+  @impl true
+  def handle_call(:stats, _from, state) do
+    {:reply,
+     %{
+       enabled: state.enabled,
+       max_hops: state.max_hops,
+       forwarded: state.forwarded,
+       dropped: state.dropped
+     }, state}
+  end
+
+  @impl true
+  def handle_call(:reset_stats, _from, state) do
+    {:reply, :ok, %{state | forwarded: 0, dropped: 0}}
+  end
+
+  @impl true
   def handle_info(_msg, state) do
     {:noreply, state}
   end
@@ -150,6 +227,8 @@ defmodule ReticulumLink.Transport.Transport do
     else
       false
     end
+  rescue
+    _ -> false
   end
 
   defp forward_packet(packet) do
@@ -159,5 +238,9 @@ defmodule ReticulumLink.Transport.Transport do
       "reticulum:forward",
       {:forward_packet, packet}
     )
+  end
+
+  defp increment_hops(packet) do
+    Map.update(packet, :hops, 1, &(&1 + 1))
   end
 end

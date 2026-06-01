@@ -98,11 +98,31 @@ def serialize_header(args):
     return {"header": header.hex()}
 
 
+def hkdf(args):
+    """HKDF-SHA-256 key derivation."""
+    from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+    from cryptography.hazmat.primitives import hashes
+
+    ikm = bytes.fromhex(args["ikm"])
+    salt = bytes.fromhex(args["salt"])
+    info = args["info"].encode("utf-8")
+    length = args["length"]
+
+    hkdf = HKDF(
+        algorithm=hashes.SHA256(),
+        length=length,
+        salt=salt,
+        info=info,
+    )
+    okm = hkdf.derive(ikm)
+    return {"okm": okm.hex()}
+
+
 FUNCTIONS = {
     "verify_sig": verify_sig,
     "generate_and_sign": generate_and_sign,
     "derive_x25519": derive_x25519,
-    "sha256": sha256,
+    "hkdf": hkdf,
     "serialize_header": serialize_header,
 }
 
