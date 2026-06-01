@@ -147,12 +147,10 @@ defmodule ReticulumLink.Crypto.Cipher do
   def derive_key(shared_secret, info, length \\ 32)
       when is_binary(shared_secret) and is_binary(info) and
              is_integer(length) and length > 0 do
-    try do
-      key = Hash.hkdf(shared_secret, info, length)
-      {:ok, key}
-    rescue
-      e -> {:error, {:key_derivation_failed, Exception.message(e)}}
-    end
+    key = Hash.hkdf(shared_secret, info, length)
+    {:ok, key}
+  rescue
+    e -> {:error, {:key_derivation_failed, Exception.message(e)}}
   end
 
   @doc """
@@ -165,7 +163,7 @@ defmodule ReticulumLink.Crypto.Cipher do
       32
   """
   @spec generate_key() :: {:ok, binary()}
-  def generate_key() do
+  def generate_key do
     {:ok, :crypto.strong_rand_bytes(32)}
   end
 
@@ -179,7 +177,7 @@ defmodule ReticulumLink.Crypto.Cipher do
       12
   """
   @spec generate_nonce() :: {:ok, binary()}
-  def generate_nonce() do
+  def generate_nonce do
     {:ok, :crypto.strong_rand_bytes(12)}
   end
 

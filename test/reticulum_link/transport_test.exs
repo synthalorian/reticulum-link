@@ -1,7 +1,7 @@
 defmodule ReticulumLink.TransportTest do
   use ExUnit.Case, async: true
 
-  alias ReticulumLink.Transport.{Header, Destination, Packet}
+  alias ReticulumLink.Transport.{Destination, Header, Packet}
 
   describe "Header" do
     test "pack and parse flags roundtrip" do

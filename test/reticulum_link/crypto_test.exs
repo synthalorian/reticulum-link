@@ -1,7 +1,7 @@
 defmodule ReticulumLink.CryptoTest do
   use ExUnit.Case, async: true
 
-  alias ReticulumLink.Crypto.{Identity, KeyExchange, Cipher, Hash, IdentityManager}
+  alias ReticulumLink.Crypto.{Cipher, Hash, Identity, IdentityManager, KeyExchange}
 
   describe "Hash" do
     test "sha256 returns 32-byte hash" do

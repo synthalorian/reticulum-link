@@ -33,7 +33,7 @@ defmodule ReticulumLink.Transport.Link do
 
   use GenServer
 
-  alias ReticulumLink.Crypto.{Identity, KeyExchange, Hash, Cipher}
+  alias ReticulumLink.Crypto.{Cipher, Hash, Identity, KeyExchange}
 
   require Logger
 

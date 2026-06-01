@@ -14,7 +14,7 @@ defmodule ReticulumLink.Lxmf.PropagationEngine do
 
   use GenServer
 
-  alias ReticulumLink.Lxmf.{Message, MessageStore, DeliveryTracker}
+  alias ReticulumLink.Lxmf.{DeliveryTracker, Message, MessageStore}
 
   @default_batch_size 10
   @default_batch_interval_ms 5_000

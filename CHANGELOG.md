@@ -2,6 +2,17 @@
 
 All notable changes to Reticulum Link will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- GitHub Actions CI — test, Credo, Dialyzer on push/PR
+- GitHub Actions Release — automated release builds and Docker image publishing on tag push
+- Dockerfile — multi-stage build for production deployment
+- CONTRIBUTING.md — contribution guidelines
+- GitHub issue templates (bug report, feature request)
+- GitHub pull request template
+
 ## [0.6.0] - 2026-05-31
 
 ### Added

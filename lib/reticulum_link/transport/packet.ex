@@ -24,8 +24,9 @@ defmodule ReticulumLink.Transport.Packet do
   MTU is 500 bytes total (header + ciphertext).
   """
 
-  alias ReticulumLink.Transport.Header
+  alias ReticulumLink.Crypto.Hash
   alias ReticulumLink.Transport.Destination
+  alias ReticulumLink.Transport.Header
 
   @typedoc "Packet struct"
   @type t :: %__MODULE__{
@@ -201,7 +202,7 @@ defmodule ReticulumLink.Transport.Packet do
   """
   @spec compute_packet_hash(binary()) :: binary()
   def compute_packet_hash(raw) when is_binary(raw) do
-    ReticulumLink.Crypto.Hash.sha256(raw)
+    Hash.sha256(raw)
   end
 
   @doc """
