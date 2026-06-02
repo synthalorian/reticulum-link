@@ -2,7 +2,25 @@
 
 All notable changes to Reticulum Link will be documented in this file.
 
-## [Unreleased]
+## [1.0.0] - 2026-06-01
+
+### Overview
+
+First stable release. All 8 implementation phases complete. The API is now stable — no breaking changes without a major version bump.
+
+### Added
+
+- **Ship-Readiness** — Production-quality code hygiene
+  - `mix.exs` package metadata: Apache-2.0 license, GitHub/Reticulum links, maintainers
+  - Dialyzer: zero errors (fixed Mix.target/0, Nerves no_return, PromEx callback types)
+  - Credo: zero issues (refactored nested functions, eliminated negated conditions)
+  - `mix format --check-formatted`: clean across all 45 source files
+
+### Changed
+
+- Version bumped to 1.0.0 — stable API guarantee
+
+---
 
 ## [0.7.0] - 2026-06-01
 
