@@ -557,39 +557,47 @@ defmodule ReticulumLink.Transport.Link do
   end
 
   defp validate_proof(state, proof_data) when byte_size(proof_data) == @proof_size do
-    <<link_id::binary-size(16), peer_x25519_pub::binary-size(32), peer_ed25519_pub::binary-size(32),
-      signature::binary-size(64)>> = proof_data
+    <<link_id::binary-size(16), peer_x25519_pub::binary-size(32),
+      peer_ed25519_pub::binary-size(32), signature::binary-size(64)>> = proof_data
 
     # Verify link_id matches
     if link_id != state.link_id do
       {:error, :link_id_mismatch}
     else
-      # Verify signature over link_id || x25519_pub || ed25519_pub
-      data = link_id <> peer_x25519_pub <> peer_ed25519_pub
-
-      if Identity.verify(data, signature, peer_ed25519_pub) do
-        # Store peer keys for encryption
-        Process.put(:peer_x25519_pub, peer_x25519_pub)
-        Process.put(:peer_ed25519_pub, peer_ed25519_pub)
-
-        # Derive shared secret with peer's X25519 public key
-        x25519_sk = Process.get(:x25519_sk)
-        if x25519_sk && peer_x25519_pub do
-          {:ok, shared_key} = KeyExchange.derive_shared_secret(x25519_sk, peer_x25519_pub)
-          derived_key = derive_link_key(shared_key, state.link_id)
-          Process.put(:shared_key, shared_key)
-          Process.put(:derived_key, derived_key)
-        end
-
-        :ok
-      else
-        {:error, :invalid_signature}
-      end
+      verify_proof_signature(state, link_id, peer_x25519_pub, peer_ed25519_pub, signature)
     end
   end
 
   defp validate_proof(_state, proof_data) do
     {:error, {:invalid_proof_size, byte_size(proof_data)}}
+  end
+
+  defp verify_proof_signature(state, link_id, peer_x25519_pub, peer_ed25519_pub, signature) do
+    data = link_id <> peer_x25519_pub <> peer_ed25519_pub
+
+    if Identity.verify(data, signature, peer_ed25519_pub) do
+      store_peer_keys(peer_x25519_pub, peer_ed25519_pub)
+      derive_shared_key(state.link_id, peer_x25519_pub)
+      :ok
+    else
+      {:error, :invalid_signature}
+    end
+  end
+
+  defp store_peer_keys(peer_x25519_pub, peer_ed25519_pub) do
+    Process.put(:peer_x25519_pub, peer_x25519_pub)
+    Process.put(:peer_ed25519_pub, peer_ed25519_pub)
+  end
+
+  defp derive_shared_key(link_id, peer_x25519_pub) do
+    x25519_sk = Process.get(:x25519_sk)
+
+    if x25519_sk && peer_x25519_pub do
+      {:ok, shared_key} = KeyExchange.derive_shared_secret(x25519_sk, peer_x25519_pub)
+      derived_key = derive_link_key(shared_key, link_id)
+      Process.put(:shared_key, shared_key)
+      Process.put(:derived_key, derived_key)
+    end
   end
 
   defp calculate_mdu(mtu) do

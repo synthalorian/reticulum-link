@@ -81,7 +81,7 @@ defmodule ReticulumLink.Telemetry do
     """
     use PromEx.Plugin
 
-    alias PromEx.MetricTypes.Event
+    alias PromEx.MetricTypes.{Event, Polling}
 
     @link_created_event [:reticulum_link, :link, :created]
     @link_closed_event [:reticulum_link, :link, :closed]
@@ -142,8 +142,10 @@ defmodule ReticulumLink.Telemetry do
     def polling_metrics(_opts) do
       metric_prefix = [:reticulum_link]
 
-      Event.build(
+      Polling.build(
         :reticulum_link_polling,
+        10_000,
+        {__MODULE__, :collect_polling_metrics, []},
         [
           last_value(metric_prefix ++ [:link, :active],
             description: "Current number of active links"
@@ -162,6 +164,15 @@ defmodule ReticulumLink.Telemetry do
           )
         ]
       )
+    end
+
+    @doc false
+    def collect_polling_metrics do
+      memory = :erlang.memory(:total)
+      process_count = :erlang.system_info(:process_count)
+
+      :telemetry.execute([:reticulum_link, :system, :memory], %{bytes: memory}, %{})
+      :telemetry.execute([:reticulum_link, :system, :process], %{count: process_count}, %{})
     end
   end
 

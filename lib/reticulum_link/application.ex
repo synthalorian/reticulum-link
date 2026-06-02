@@ -15,7 +15,7 @@ defmodule ReticulumLink.Application do
 
     # Add Nerves init on embedded targets
     children =
-      if Mix.target() != :host do
+      if apply(Mix, :target, []) != :host do
         children ++ [{Task, fn -> ReticulumLink.Nerves.init() end}]
       else
         children

@@ -47,6 +47,7 @@ defmodule ReticulumLink.Nerves do
   @doc """
   Reboot the device.
   """
+  @dialyzer {:no_return, reboot: 0}
   def reboot do
     Nerves.Runtime.reboot()
   end
@@ -54,6 +55,7 @@ defmodule ReticulumLink.Nerves do
   @doc """
   Power off the device.
   """
+  @dialyzer {:no_return, poweroff: 0}
   def poweroff do
     Nerves.Runtime.poweroff()
   end

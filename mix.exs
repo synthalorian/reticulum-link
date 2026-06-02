@@ -16,6 +16,8 @@ defmodule ReticulumLink.MixProject do
       name: "Reticulum Link",
       description: "High-performance Reticulum transport node and LXMF relay",
       source_url: "https://github.com/synthalorian/reticulum-link",
+      homepage_url: "https://github.com/synthalorian/reticulum-link",
+      package: package(),
       docs: [
         main: "ReticulumLink",
         extras: ["README.md", "PLAN.md"]
@@ -26,7 +28,8 @@ defmodule ReticulumLink.MixProject do
   def application do
     [
       mod: {ReticulumLink.Application, []},
-      extra_applications: [:logger, :runtime_tools, :crypto, :os_mon] ++ extra_applications(Mix.target())
+      extra_applications:
+        [:logger, :runtime_tools, :crypto, :os_mon] ++ extra_applications(Mix.target())
     ]
   end
 
@@ -92,6 +95,17 @@ defmodule ReticulumLink.MixProject do
       setup: ["deps.get", "compile"],
       firmware: ["deps.get", "compile", "firmware"],
       "firmware.burn": ["firmware.burn"]
+    ]
+  end
+
+  defp package do
+    [
+      licenses: ["Apache-2.0"],
+      links: %{
+        "GitHub" => "https://github.com/synthalorian/reticulum-link",
+        "Reticulum" => "https://reticulum.network"
+      },
+      maintainers: ["synth (synthalorian)"]
     ]
   end
 end
