@@ -44,11 +44,12 @@ defmodule ReticulumLink.Interop.RnsCompatTest do
       sig = Identity.sign(message, sk)
 
       # Verify in Python
-      python_verify = run_python("verify_sig", %{
-        "public_key" => Base.encode16(pk, case: :lower),
-        "message" => message,
-        "signature" => Base.encode16(sig, case: :lower)
-      })
+      python_verify =
+        run_python("verify_sig", %{
+          "public_key" => Base.encode16(pk, case: :lower),
+          "message" => message,
+          "signature" => Base.encode16(sig, case: :lower)
+        })
 
       assert python_verify["valid"] == true
     end
@@ -96,12 +97,13 @@ defmodule ReticulumLink.Interop.RnsCompatTest do
 
       elixir_okm = Hash.hkdf(ikm, salt, info, length)
 
-      result = run_python("hkdf", %{
-        "ikm" => Base.encode16(ikm, case: :lower),
-        "salt" => Base.encode16(salt, case: :lower),
-        "info" => info,
-        "length" => length
-      })
+      result =
+        run_python("hkdf", %{
+          "ikm" => Base.encode16(ikm, case: :lower),
+          "salt" => Base.encode16(salt, case: :lower),
+          "info" => info,
+          "length" => length
+        })
 
       python_okm = Base.decode16!(result["okm"], case: :lower)
 
@@ -138,13 +140,14 @@ defmodule ReticulumLink.Interop.RnsCompatTest do
 
       elixir_serialized = Header.serialize(header)
 
-      result = run_python("serialize_header", %{
-        "header_type" => 0,
-        "destination_hash" => Base.encode16(dst_hash, case: :lower),
-        "packet_type" => 0,
-        "hops" => 5,
-        "context" => 0x01
-      })
+      result =
+        run_python("serialize_header", %{
+          "header_type" => 0,
+          "destination_hash" => Base.encode16(dst_hash, case: :lower),
+          "packet_type" => 0,
+          "hops" => 5,
+          "context" => 0x01
+        })
 
       python_serialized = Base.decode16!(result["header"], case: :lower)
 

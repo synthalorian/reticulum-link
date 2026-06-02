@@ -110,9 +110,7 @@ defmodule ReticulumLink.Transport.LinkTest do
       peer_sig_pub = :crypto.strong_rand_bytes(32)
 
       {:ok, responder} =
-        Link.start_link_responder(dst_hash, peer_pub, peer_sig_pub,
-          name: :test_link_bad_proof
-        )
+        Link.start_link_responder(dst_hash, peer_pub, peer_sig_pub, name: :test_link_bad_proof)
 
       # Generate a valid proof first
       {:ok, valid_proof} = Link.generate_proof(responder)
@@ -165,13 +163,14 @@ defmodule ReticulumLink.Transport.LinkTest do
 
         derived_key = Hash.hkdf(shared_key, resp_keys.link_id, "reticulum-link", 32)
 
-        %{state |
-          link_id: resp_keys.link_id,
-          peer_pub: resp_keys.x25519_pk,
-          peer_sig_pub: resp_keys.sig_pk,
-          shared_key: shared_key,
-          derived_key: derived_key,
-          status: :handshake
+        %{
+          state
+          | link_id: resp_keys.link_id,
+            peer_pub: resp_keys.x25519_pk,
+            peer_sig_pub: resp_keys.sig_pk,
+            shared_key: shared_key,
+            derived_key: derived_key,
+            status: :handshake
         }
       end)
 
@@ -196,12 +195,13 @@ defmodule ReticulumLink.Transport.LinkTest do
 
         derived_key = Hash.hkdf(shared_key, state.link_id, "reticulum-link", 32)
 
-        %{state |
-          peer_pub: init_keys.x25519_pk,
-          peer_sig_pub: init_keys.sig_pk,
-          shared_key: shared_key,
-          derived_key: derived_key,
-          status: :active
+        %{
+          state
+          | peer_pub: init_keys.x25519_pk,
+            peer_sig_pub: init_keys.sig_pk,
+            shared_key: shared_key,
+            derived_key: derived_key,
+            status: :active
         }
       end)
 

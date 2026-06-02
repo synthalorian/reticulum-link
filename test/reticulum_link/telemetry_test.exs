@@ -100,7 +100,7 @@ defmodule ReticulumLink.TelemetryTest do
     test "returns list of telemetry metrics" do
       metrics = Telemetry.metrics()
       assert is_list(metrics)
-      assert length(metrics) > 0
+      assert metrics != []
 
       names = Enum.map(metrics, & &1.name)
       assert [:reticulum_link, :link, :created, :count] in names

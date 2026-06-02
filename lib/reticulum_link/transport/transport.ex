@@ -157,36 +157,10 @@ defmodule ReticulumLink.Transport.Transport do
 
   @impl true
   def handle_call({:forward_to, destination_hash, packet}, _from, state) do
-    if not state.enabled do
-      {:reply, {:error, :transport_disabled}, state}
+    if state.enabled do
+      do_forward_to(destination_hash, packet, state)
     else
-      hops = Map.get(packet, :hops, 0)
-
-      if hops >= state.max_hops do
-        {:reply, {:error, :max_hops_exceeded}, %{state | dropped: state.dropped + 1}}
-      else
-        # Look up path and forward
-        case ReticulumLink.Transport.PathManager.lookup_path(destination_hash) do
-          {:ok, path_entry} ->
-            forwarded = increment_hops(packet)
-
-            tid = path_entry.transport_id
-            topic = if tid, do: "reticulum:forward:#{Base.encode16(tid)}", else: "reticulum:forward:broadcast"
-
-            Phoenix.PubSub.broadcast(
-              ReticulumLink.PubSub,
-              topic,
-              {:forward_packet, forwarded, path_entry}
-            )
-
-            {:reply, :ok, %{state | forwarded: state.forwarded + 1}}
-
-          {:error, :no_path} ->
-            # Flood to all interfaces
-            forward_packet(packet)
-            {:reply, :ok, %{state | forwarded: state.forwarded + 1}}
-        end
-      end
+      {:reply, {:error, :transport_disabled}, state}
     end
   end
 
@@ -229,6 +203,44 @@ defmodule ReticulumLink.Transport.Transport do
     end
   rescue
     _ -> false
+  end
+
+  defp do_forward_to(destination_hash, packet, state) do
+    hops = Map.get(packet, :hops, 0)
+
+    if hops >= state.max_hops do
+      {:reply, {:error, :max_hops_exceeded}, %{state | dropped: state.dropped + 1}}
+    else
+      try_path_forward(destination_hash, packet, state)
+    end
+  end
+
+  defp try_path_forward(destination_hash, packet, state) do
+    case ReticulumLink.Transport.PathManager.lookup_path(destination_hash) do
+      {:ok, path_entry} ->
+        forwarded = increment_hops(packet)
+        broadcast_forward(forwarded, path_entry)
+        {:reply, :ok, %{state | forwarded: state.forwarded + 1}}
+
+      {:error, :no_path} ->
+        forward_packet(packet)
+        {:reply, :ok, %{state | forwarded: state.forwarded + 1}}
+    end
+  end
+
+  defp broadcast_forward(packet, path_entry) do
+    tid = path_entry.transport_id
+
+    topic =
+      if tid,
+        do: "reticulum:forward:#{Base.encode16(tid)}",
+        else: "reticulum:forward:broadcast"
+
+    Phoenix.PubSub.broadcast(
+      ReticulumLink.PubSub,
+      topic,
+      {:forward_packet, packet, path_entry}
+    )
   end
 
   defp forward_packet(packet) do
