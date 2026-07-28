@@ -1,8 +1,8 @@
 defmodule ReticulumLink.Transport.LinkTest do
   use ExUnit.Case, async: true
 
-  alias ReticulumLink.Transport.{Link, LinkManager, PathManager}
   alias ReticulumLink.Crypto.{Hash, KeyExchange}
+  alias ReticulumLink.Transport.{Link, LinkManager, PathManager}
 
   describe "Link lifecycle" do
     test "initiator link starts in pending state" do

@@ -21,6 +21,8 @@ defmodule ReticulumLink.Transport.Transport do
 
   require Logger
 
+  alias ReticulumLink.Transport.PathManager
+
   @default_max_hops 128
 
   # ===========================================================================
@@ -216,7 +218,7 @@ defmodule ReticulumLink.Transport.Transport do
   end
 
   defp try_path_forward(destination_hash, packet, state) do
-    case ReticulumLink.Transport.PathManager.lookup_path(destination_hash) do
+    case PathManager.lookup_path(destination_hash) do
       {:ok, path_entry} ->
         forwarded = increment_hops(packet)
         broadcast_forward(forwarded, path_entry)

@@ -20,6 +20,18 @@ First stable release. All 8 implementation phases complete. The API is now stabl
 
 - Version bumped to 1.0.0 — stable API guarantee
 
+### Fixed (post-tag verification sweep)
+
+- **`/metrics` endpoint was non-functional** — `MetricsController` treated `Telemetry.Metrics` struct names (atom lists) as strings, crashing with `FunctionClauseError`, and the `:telemetry_event_table` ETS table it read was never created. The endpoint now renders valid Prometheus text exposition format backed by a `:telemetry` handler that maintains counters and last-value gauges in ETS (attached in `ReticulumLink.Telemetry.init/1`). Covered by 2 new tests.
+- **Credo strict sweep** — eliminated all 11 remaining issues: `apply(Mix, :target, [])` replaced with a compile-time `@mix_target` attribute (Mix is unavailable in releases), nested-module aliases added, alias ordering fixed.
+- **`bench/link_bench.exs`** — fixed missing `Link` alias that crashed the memory benchmark; the full suite now runs to completion (`mix run bench/link_bench.exs`).
+
+### Documentation (post-tag verification sweep)
+
+- README: documented the Arch/CachyOS split-Erlang gotcha (`pacman -S erlang-parsetools erlang-ssh erlang-tools erlang-os_mon`)
+- README: documented `pip install rns` requirement for the Python RNS interop tests
+- README: added test-suite and benchmark run instructions
+
 ---
 
 ## [0.7.0] - 2026-06-01

@@ -2,6 +2,9 @@ defmodule ReticulumLink.Application do
   @moduledoc false
   use Application
 
+  # Resolved at compile time: Mix is not available in releases.
+  @mix_target Mix.target()
+
   @impl true
   def start(_type, _args) do
     children = [
@@ -15,7 +18,7 @@ defmodule ReticulumLink.Application do
 
     # Add Nerves init on embedded targets
     children =
-      if apply(Mix, :target, []) != :host do
+      if @mix_target != :host do
         children ++ [{Task, fn -> ReticulumLink.Nerves.init() end}]
       else
         children

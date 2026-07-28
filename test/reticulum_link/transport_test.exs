@@ -285,7 +285,7 @@ defmodule ReticulumLink.TransportTest do
   end
 
   describe "Transport backbone forwarding" do
-    alias ReticulumLink.Transport.{Transport, PathManager}
+    alias ReticulumLink.Transport.{PathManager, Transport}
 
     setup do
       on_exit(fn ->

@@ -23,12 +23,98 @@ defmodule ReticulumLink.Telemetry do
 
   @impl true
   def init(_arg) do
+    :ok = init_metrics_table()
+    :ok = attach_metrics_handler()
+
     children = [
       # Telemetry poller for periodic metrics
       {:telemetry_poller, measurements: periodic_measurements(), period: 10_000}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
+  end
+
+  # ETS table backing the Prometheus text endpoint in
+  # ReticulumLink.Web.MetricsController. Counters and last values for
+  # every emitted [:reticulum_link | _] event are maintained here.
+  @metrics_table :telemetry_event_table
+  @metrics_handler_id {__MODULE__, :metrics_table}
+
+  @doc false
+  def metrics_table, do: @metrics_table
+
+  @doc false
+  def metrics_events do
+    [
+      [:reticulum_link, :link, :created],
+      [:reticulum_link, :link, :closed],
+      [:reticulum_link, :link, :active],
+      [:reticulum_link, :message, :received],
+      [:reticulum_link, :message, :propagated],
+      [:reticulum_link, :message, :stored],
+      [:reticulum_link, :path, :discovered],
+      [:reticulum_link, :path, :active],
+      [:reticulum_link, :transport, :packet, :sent],
+      [:reticulum_link, :transport, :packet, :received],
+      [:reticulum_link, :transport, :packet, :forwarded],
+      [:reticulum_link, :system, :memory],
+      [:reticulum_link, :system, :process]
+    ]
+  end
+
+  defp init_metrics_table do
+    case :ets.whereis(@metrics_table) do
+      :undefined ->
+        :ets.new(@metrics_table, [
+          :named_table,
+          :public,
+          :set,
+          {:write_concurrency, true},
+          {:read_concurrency, true}
+        ])
+
+        :ok
+
+      _tid ->
+        :ok
+    end
+  end
+
+  defp attach_metrics_handler do
+    _ = :telemetry.detach(@metrics_handler_id)
+
+    case :telemetry.attach_many(
+           @metrics_handler_id,
+           metrics_events(),
+           &__MODULE__.handle_metrics_event/4,
+           nil
+         ) do
+      :ok -> :ok
+      {:error, :already_exists} -> :ok
+    end
+  end
+
+  @doc false
+  def handle_metrics_event(event, measurements, _metadata, _config) do
+    count = Map.get(measurements, :count, 1)
+
+    :ets.update_counter(@metrics_table, {event, :counter}, {2, count}, {{event, :counter}, 0})
+
+    case last_measurement(measurements) do
+      nil -> :ok
+      value -> :ets.insert(@metrics_table, {{event, :last_value}, value})
+    end
+
+    :ok
+  end
+
+  defp last_measurement(measurements) do
+    measurements[:usage] ||
+      measurements[:bytes] ||
+      Enum.find_value(measurements, fn
+        {_key, value} when is_integer(value) or is_float(value) -> value
+        _pair -> nil
+      end)
   end
 
   def metrics do

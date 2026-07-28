@@ -31,8 +31,8 @@
     ║                             │                                     ║
     ║           ┌─────────────────┼─────────────────┐                 ║
     ║      ┌────┴─────┐    ┌─────┴──────┐    ┌─────┴──────┐         ║
-    ║      │   TCP    │    │   LoRa     │    │  Serial    │         ║
-    ║      │  Server  │    │   Radio    │    │  RNode     │         ║
+    ║      │   TCP    │    │   RNode    │    │  Auto      │         ║
+    ║      │  Server  │    │  (LoRa)    │    │ Interface  │         ║
     ║      └──────────┘    └────────────┘    └────────────┘         ║
     ╚════════════════════════════════════════════════════════════════════╝
 ```
@@ -49,7 +49,7 @@ Designed for 24/7 unattended operation on everything from cloud servers to Raspb
 - **Full Reticulum protocol** reimplementation in Elixir (Identity, Link, Announce, Path, Packet)
 - **Concurrent link management** — one lightweight Erlang process per link
 - **Automatic path discovery** — builds and maintains routing tables
-- **Multi-interface support** — TCP, LoRa, Serial, AutoInterface
+- **Multi-interface support** — TCP, Serial (RNode), AutoInterface; LoRa via RNode over serial
 - **Transport mode** — full routing/forwarding for network backbone operation
 
 ### 📨 LXMF Relay
@@ -75,7 +75,7 @@ Designed for 24/7 unattended operation on everything from cloud servers to Raspb
 - **Raspberry Pi firmware** — pre-built Nerves images for zero-config deployment
 - **OTA updates** — push firmware updates over the network
 - **Minimal footprint** — runs on Pi Zero 2W with 512MB RAM
-- **Hardware support** — RNode serial, LoRa HATs, USB adapters
+- **Hardware support** — RNode serial (LoRa), USB adapters (via optional `circuits_uart`)
 
 ## Tech Stack
 
@@ -98,6 +98,29 @@ Designed for 24/7 unattended operation on everything from cloud servers to Raspb
 - Erlang/OTP 27+
 - Rustler (for NIFs if needed)
 
+> **Arch Linux / CachyOS note:** Arch-based distros split Erlang/OTP into many
+> packages. Reticulum Link needs several that are not pulled in by the base
+> `erlang` package. Install them explicitly:
+>
+> ```bash
+> sudo pacman -S erlang-parsetools erlang-ssh erlang-tools erlang-os_mon
+> ```
+>
+> Without these, `mix compile`/`mix test` fail with missing-application errors
+> (`:parsetools`, `:ssh`, `:os_mon`, ...). On Debian/Ubuntu and asdf/mise
+> installs, Erlang ships as one bundle and this step is unnecessary.
+
+> **Interop tests:** the Python RNS compatibility tests
+> (`test/interop/rns_compat_test.exs`) require the reference Reticulum
+> implementation on your `PATH`:
+>
+> ```bash
+> pip install rns
+> ```
+>
+> Without it those 6 tests are marked invalid/skipped; the rest of the suite
+> runs fine without Python.
+
 ### Installation
 
 ```bash
@@ -106,6 +129,25 @@ cd reticulum-link
 mix deps.get
 mix compile
 ```
+
+### Running the test suite
+
+```bash
+MIX_ENV=test mix test        # 122 tests (includes Python RNS interop if `rns` is installed)
+mix credo --strict           # lint: zero issues
+mix format --check-formatted # formatting gate
+mix dialyzer                 # static analysis (first run builds the PLT — slow)
+```
+
+### Benchmarks
+
+```bash
+mix run bench/link_bench.exs
+```
+
+Measures crypto throughput, link creation rate, memory per link (verified
+~6.5 KB/link), LXMF storage throughput, and packet pack/unpack latency.
+There is no dedicated `mix bench` task; the script runs the full app.
 
 ### Running
 
@@ -143,8 +185,7 @@ ReticulumLink.Supervisor (top-level)
 │   ├── ReticulumLink.Transport.AnnounceHandler (GenServer)
 │   └── ReticulumLink.Transport.InterfaceSupervisor
 │       ├── Interface:TcpServer (DynamicSupervisor children)
-│       ├── Interface:Serial0
-│       └── Interface:LoRa0
+│       └── Interface:Serial0 (RNode/LoRa via circuits_uart, optional)
 ├── ReticulumLink.Lxmf.Supervisor
 │   ├── ReticulumLink.Lxmf.PropagationEngine (GenServer)
 │   ├── ReticulumLink.Lxmf.MessageStore (GenServer, ETS-backed)

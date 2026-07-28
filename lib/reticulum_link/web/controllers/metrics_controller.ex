@@ -1,79 +1,68 @@
 defmodule ReticulumLink.Web.MetricsController do
   @moduledoc """
   GET /metrics — Prometheus-compatible metrics endpoint.
+
+  Renders the `Telemetry.Metrics` structs from `ReticulumLink.Telemetry.metrics/0`
+  in Prometheus text exposition format. Counter values and last-value gauges are
+  read from the ETS table maintained by `ReticulumLink.Telemetry`, which is
+  populated by a `:telemetry` handler attached at application startup.
   """
   use Phoenix.Controller, formats: [:text]
 
   alias ReticulumLink.Telemetry
 
+  # Note: fully-qualified — a bare `Telemetry.Metrics` alias would resolve
+  # against the `ReticulumLink.Telemetry` alias above.
+  alias Elixir.Telemetry.Metrics, as: TMetrics
+
   def index(conn, _params) do
-    metrics = Telemetry.metrics()
+    lines =
+      Telemetry.metrics()
+      |> Enum.flat_map(&format_metric/1)
 
-    # Build simple Prometheus text format
-    lines = Enum.flat_map(metrics, &format_metric/1)
-
-    text_response(conn, Enum.join(lines, "\n"))
+    text_response(conn, Enum.join(lines, "\n") <> "\n")
   end
 
-  defp format_metric(%{__struct__: struct, name: name})
-       when struct in [Telemetry.Metrics.Counter, Telemetry.Metrics.Sum] do
-    event = event_name(name)
-    value = get_counter_value(event)
-
+  defp format_metric(%{__struct__: struct, name: name, event_name: event})
+       when struct in [TMetrics.Counter, TMetrics.Sum] do
     [
       "# HELP #{metric_name(name)} counter",
       "# TYPE #{metric_name(name)} counter",
-      "#{metric_name(name)} #{value}"
+      "#{metric_name(name)} #{lookup({event, :counter})}"
     ]
   end
 
-  defp format_metric(%{__struct__: struct, name: name})
-       when struct in [Telemetry.Metrics.LastValue, Telemetry.Metrics.Gauge] do
-    event = event_name(name)
-    value = get_last_value(event)
-
+  defp format_metric(%{__struct__: struct, name: name, event_name: event})
+       when struct in [TMetrics.LastValue, TMetrics.Gauge] do
     [
       "# HELP #{metric_name(name)} gauge",
       "# TYPE #{metric_name(name)} gauge",
-      "#{metric_name(name)} #{value}"
+      "#{metric_name(name)} #{lookup({event, :last_value})}"
     ]
   end
 
-  defp format_metric(_), do: []
+  defp format_metric(_metric), do: []
 
-  defp metric_name(name) do
+  # Telemetry.Metrics names are atom lists, e.g.
+  # [:reticulum_link, :link, :created, :count] → "reticulum_link_link_created_count"
+  defp metric_name(name) when is_list(name) do
+    Enum.map_join(name, "_", &Atom.to_string/1)
+  end
+
+  defp metric_name(name) when is_binary(name) do
     name |> String.replace(".", "_") |> String.replace(" ", "_")
   end
 
-  defp event_name(name) do
-    name
-    |> String.split(".")
-    |> Enum.map(&String.to_atom/1)
-    |> List.replace_at(0, :reticulum_link)
-  end
+  defp lookup(key) do
+    table = Telemetry.metrics_table()
 
-  defp get_counter_value(event_name) do
-    # Read from telemetry event table or return 0
-    case :ets.info(:telemetry_event_table) do
+    case :ets.whereis(table) do
       :undefined ->
         0
 
-      _ ->
-        case :ets.lookup(:telemetry_event_table, event_name) do
-          [{_, count}] -> count
-          [] -> 0
-        end
-    end
-  end
-
-  defp get_last_value(event_name) do
-    case :ets.info(:telemetry_event_table) do
-      :undefined ->
-        0
-
-      _ ->
-        case :ets.lookup(:telemetry_event_table, {event_name, :last_value}) do
-          [{_, value}] -> value
+      _tid ->
+        case :ets.lookup(table, key) do
+          [{_key, value}] -> value
           [] -> 0
         end
     end
