@@ -15,7 +15,7 @@ defmodule ReticulumLink.Interop.RnsCompatTest do
 
   use ExUnit.Case
 
-  alias ReticulumLink.Crypto.{Identity, Hash}
+  alias ReticulumLink.Crypto.{Cipher, Hash, Identity}
   alias ReticulumLink.Transport.Header
 
   @python_script Path.join(__DIR__, "rns_compat.py")
@@ -115,8 +115,8 @@ defmodule ReticulumLink.Interop.RnsCompatTest do
       nonce = :crypto.strong_rand_bytes(12)
       plaintext = "secret reticulum message"
 
-      {:ok, encrypted} = ReticulumLink.Crypto.Cipher.encrypt(plaintext, key, nonce)
-      {:ok, decrypted} = ReticulumLink.Crypto.Cipher.decrypt(encrypted, key, nonce)
+      {:ok, encrypted} = Cipher.encrypt(plaintext, key, nonce)
+      {:ok, decrypted} = Cipher.decrypt(encrypted, key, nonce)
 
       assert decrypted == plaintext
     end

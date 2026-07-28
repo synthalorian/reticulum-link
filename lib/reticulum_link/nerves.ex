@@ -11,6 +11,8 @@ defmodule ReticulumLink.Nerves do
 
   require Logger
 
+  alias Nerves.Runtime.KV
+
   @doc """
   Initialize Nerves-specific subsystems.
 
@@ -34,10 +36,10 @@ defmodule ReticulumLink.Nerves do
   """
   def system_info do
     %{
-      board: Nerves.Runtime.KV.get_active("nerves_fw_board_name"),
-      version: Nerves.Runtime.KV.get_active("nerves_fw_version"),
-      architecture: Nerves.Runtime.KV.get_active("nerves_fw_architecture"),
-      platform: Nerves.Runtime.KV.get_active("nerves_fw_platform"),
+      board: KV.get_active("nerves_fw_board_name"),
+      version: KV.get_active("nerves_fw_version"),
+      architecture: KV.get_active("nerves_fw_architecture"),
+      platform: KV.get_active("nerves_fw_platform"),
       uptime: :erlang.system_info(:uptime),
       memory: :erlang.memory(:total),
       storage: get_storage_info()

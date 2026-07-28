@@ -156,4 +156,37 @@ defmodule ReticulumLink.WebTest do
       assert conn.status == 200
     end
   end
+
+  describe "GET /metrics" do
+    test "returns Prometheus text exposition format" do
+      conn = conn(:get, "/metrics")
+      conn = Router.call(conn, @opts)
+
+      assert conn.status == 200
+      assert get_resp_header(conn, "content-type") |> hd() =~ "text/plain"
+
+      body = conn.resp_body
+      assert body =~ "# TYPE reticulum_link_link_created_count counter"
+      assert body =~ "# TYPE reticulum_link_system_memory_usage gauge"
+    end
+
+    test "reflects emitted telemetry counters" do
+      # Emit unique events via the public Telemetry API
+      ReticulumLink.Telemetry.link_created("metrics_test_link")
+      ReticulumLink.Telemetry.link_created("metrics_test_link")
+
+      conn = conn(:get, "/metrics")
+      conn = Router.call(conn, @opts)
+
+      assert conn.status == 200
+
+      [line] =
+        conn.resp_body
+        |> String.split("\n")
+        |> Enum.filter(&String.starts_with?(&1, "reticulum_link_link_created_count "))
+
+      [_, value] = String.split(line, " ")
+      assert String.to_integer(value) >= 2
+    end
+  end
 end

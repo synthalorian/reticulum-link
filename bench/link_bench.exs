@@ -11,11 +11,9 @@ defmodule ReticulumLink.Bench.LinkBench do
   Run with: mix run bench/link_bench.exs
   """
 
-  alias ReticulumLink.Transport.LinkManager
+  alias ReticulumLink.Transport.{Link, LinkManager}
   alias ReticulumLink.Crypto.{Identity, Cipher, Hash}
   alias ReticulumLink.Lxmf.{Message, MessageStore}
-
-  require Logger
 
   @doc "Run all benchmarks"
   def run do
@@ -216,7 +214,7 @@ defmodule ReticulumLink.Bench.LinkBench do
   defp bench_packet_roundtrip do
     IO.puts("── Packet Pack/Unpack ───────────────────────────────────────")
 
-    alias ReticulumLink.Transport.{Packet, Destination}
+    alias ReticulumLink.Transport.{Destination, Packet}
 
     {:ok, dest} = Destination.create(:plain, :out, "bench", [], nil)
     data = :crypto.strong_rand_bytes(400)
