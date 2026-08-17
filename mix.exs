@@ -105,7 +105,7 @@ defmodule ReticulumLink.MixProject do
         "GitHub" => "https://github.com/synthalorian/reticulum-link",
         "Reticulum" => "https://reticulum.network"
       },
-      maintainers: ["synth (synthalorian)"]
+      maintainers: ["synth"]
     ]
   end
 end
