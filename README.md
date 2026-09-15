@@ -220,7 +220,7 @@ Apache License 2.0 — see [LICENSE](LICENSE).
 
 ## Credits
 
-Built by **synth 🎹🤺** (synth) with **synthclaw**.
+Built by **synth 🎹🤺** (synth) with **blackclaw**.
 
 ---
 
