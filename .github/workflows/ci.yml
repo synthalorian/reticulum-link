@@ -42,6 +42,9 @@ jobs:
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libmnl-dev libnl-3-dev libnl-genl-3-dev
 
+      - name: Install Python RNS (interop tests)
+        run: python -m pip install --break-system-packages rns || python -m pip install rns
+
       - name: Install dependencies
         run: mix deps.get
 
