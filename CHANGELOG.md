@@ -221,4 +221,3 @@ First stable release. All 8 implementation phases complete. The API is now stabl
 
 ---
 
-Built by **synth**
