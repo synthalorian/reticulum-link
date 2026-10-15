@@ -1,3 +1,5 @@
+![reticulum-link](.github/preview.png)
+
 # ⟠ Reticulum Link
 
 > High-performance Reticulum transport node and LXMF relay — built on the BEAM
