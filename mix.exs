@@ -66,7 +66,7 @@ defmodule ReticulumLink.MixProject do
       # Target-specific systems (optional, fetched on demand)
       {:nerves_system_rpi4, "~> 1.29", runtime: false, targets: :rpi4},
       {:nerves_system_rpi3, "~> 1.29", runtime: false, targets: :rpi3},
-      {:nerves_system_rpi0, "~> 1.29", runtime: false, targets: :rpi0},
+      {:nerves_system_rpi0, "~> 2.0", runtime: false, targets: :rpi0},
 
       # Ed25519 for Reticulum identity
       {:ed25519, "~> 1.0"},
