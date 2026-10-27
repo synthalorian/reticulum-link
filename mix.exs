@@ -54,7 +54,7 @@ defmodule ReticulumLink.MixProject do
 
       # Serial / hardware
       {:circuits_uart, "~> 1.5", optional: true},
-      {:circuits_gpio, "~> 1.1", optional: true},
+      {:circuits_gpio, "~> 2.3", optional: true},
 
       # Nerves (embedded)
       {:nerves, "~> 1.10", runtime: false},
