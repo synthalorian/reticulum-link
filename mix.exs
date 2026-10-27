@@ -64,7 +64,7 @@ defmodule ReticulumLink.MixProject do
       {:nerves_pack, "~> 0.7"},
 
       # Target-specific systems (optional, fetched on demand)
-      {:nerves_system_rpi4, "~> 1.29", runtime: false, targets: :rpi4},
+      {:nerves_system_rpi4, "~> 2.0", runtime: false, targets: :rpi4},
       {:nerves_system_rpi3, "~> 1.29", runtime: false, targets: :rpi3},
       {:nerves_system_rpi0, "~> 1.29", runtime: false, targets: :rpi0},
 
